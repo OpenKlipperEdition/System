@@ -1,0 +1,211 @@
+#!/bin/sh
+#
+# start uvc
+#
+
+
+function start_uvc_cameras()
+{
+	uvc_node=`get_video_by_name 13500000.otg`
+	#isp0_node=`get_video_by_name isp-13702300.mscaler-ch0`
+	enc_node=`get_video_by_name helix-venc`
+
+	echo 16 > /sys/module/isp_video/parameters/isp_force_img_depth
+	webcam_gadget -u /dev/$uvc_node -v /dev/video5 -e /dev/$enc_node &
+	#webcam_gadget -u /dev/$uvc_node -v /dev/$isp0_node -e /dev/$enc_node -d -i /mnt &
+}
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb uvc devices ..."
+	mkdir -p demo/functions/uvc.
+
+	if [ $? != 0 ]; then
+		echo "unable to create function uvc. check kernel config!"
+		exit 1
+	fi
+
+
+	echo 3072 > demo/functions/uvc./streaming_maxpacket
+	mkdir -p demo/functions/uvc./control/header/h
+	echo 256 > demo/functions/uvc./control/header/h/bcdUVC
+	echo 48000000 > demo/functions/uvc./control/header/h/dwClockFrequency
+	ln -s demo/functions/uvc./control/header/h demo/functions/uvc./control/class/fs/
+	ln -s demo/functions/uvc./control/header/h demo/functions/uvc./control/class/ss/
+
+	mkdir -p demo/functions/uvc./streaming/header/h
+	# 1.YUV
+        mkdir -p demo/functions/uvc./streaming/uncompressed/yuv
+        mkdir -p demo/functions/uvc./streaming/uncompressed/yuv/360p
+        mkdir -p demo/functions/uvc./streaming/uncompressed/yuv/480p
+        mkdir -p demo/functions/uvc./streaming/uncompressed/yuv/720p
+        mkdir -p demo/functions/uvc./streaming/uncompressed/yuv/1080p
+	# 2.JPEG
+        mkdir -p demo/functions/uvc./streaming/mjpeg/jpeg
+        mkdir -p demo/functions/uvc./streaming/mjpeg/jpeg/360p
+        mkdir -p demo/functions/uvc./streaming/mjpeg/jpeg/480p
+        mkdir -p demo/functions/uvc./streaming/mjpeg/jpeg/720p
+        mkdir -p demo/functions/uvc./streaming/mjpeg/jpeg/1080p
+
+	## yuv ##
+	echo 1       > demo/functions/uvc./streaming/uncompressed/yuv/bDefaultFrameIndex
+
+	## yuv.360p ##
+cat <<EOF > demo/functions/uvc./streaming/uncompressed/yuv/360p/dwFrameInterval
+333333
+666666
+EOF
+        echo 640       > demo/functions/uvc./streaming/uncompressed/yuv/360p/wWidth
+        echo 360       > demo/functions/uvc./streaming/uncompressed/yuv/360p/wHeight
+        echo 460800  > demo/functions/uvc./streaming/uncompressed/yuv/360p/dwMaxVideoFrameBufferSize
+        echo 55296000  > demo/functions/uvc./streaming/uncompressed/yuv/360p/dwMinBitRate
+        echo 110592000  > demo/functions/uvc./streaming/uncompressed/yuv/360p/dwMaxBitRate
+        echo 333333  > demo/functions/uvc./streaming/uncompressed/yuv/360p/dwDefaultFrameInterval
+        echo 0       > demo/functions/uvc./streaming/uncompressed/yuv/360p/bmCapabilities
+
+	## yuv.480p ##
+cat <<EOF > demo/functions/uvc./streaming/uncompressed/yuv/480p/dwFrameInterval
+333333
+666666
+EOF
+        echo 640       > demo/functions/uvc./streaming/uncompressed/yuv/480p/wWidth
+        echo 480       > demo/functions/uvc./streaming/uncompressed/yuv/480p/wHeight
+        echo 614400  > demo/functions/uvc./streaming/uncompressed/yuv/480p/dwMaxVideoFrameBufferSize
+        echo 73728000  > demo/functions/uvc./streaming/uncompressed/yuv/480p/dwMinBitRate
+        echo 147456000  > demo/functions/uvc./streaming/uncompressed/yuv/480p/dwMaxBitRate
+        echo 333333  > demo/functions/uvc./streaming/uncompressed/yuv/480p/dwDefaultFrameInterval
+        echo 0       > demo/functions/uvc./streaming/uncompressed/yuv/480p/bmCapabilities
+
+	## yuv.720p ##
+cat <<EOF > demo/functions/uvc./streaming/uncompressed/yuv/720p/dwFrameInterval
+333333
+666666
+EOF
+        echo 1280	> demo/functions/uvc./streaming/uncompressed/yuv/720p/wWidth
+        echo 720        > demo/functions/uvc./streaming/uncompressed/yuv/720p/wHeight
+        echo 1843200  > demo/functions/uvc./streaming/uncompressed/yuv/720p/dwMaxVideoFrameBufferSize
+        echo 221184000	> demo/functions/uvc./streaming/uncompressed/yuv/720p/dwMinBitRate
+        echo 442368000	> demo/functions/uvc./streaming/uncompressed/yuv/720p/dwMaxBitRate
+        echo 333333  > demo/functions/uvc./streaming/uncompressed/yuv/720p/dwDefaultFrameInterval
+        echo 0       > demo/functions/uvc./streaming/uncompressed/yuv/720p/bmCapabilities
+
+	## yuv.1080p ##
+cat <<EOF > demo/functions/uvc./streaming/uncompressed/yuv/1080p/dwFrameInterval
+710000
+2000000
+EOF
+        echo 1920	> demo/functions/uvc./streaming/uncompressed/yuv/1080p/wWidth
+        echo 1080        > demo/functions/uvc./streaming/uncompressed/yuv/1080p/wHeight
+        echo 4147200  > demo/functions/uvc./streaming/uncompressed/yuv/1080p/dwMaxVideoFrameBufferSize
+        echo 165888000	> demo/functions/uvc./streaming/uncompressed/yuv/1080p/dwMinBitRate
+        echo 464486400	> demo/functions/uvc./streaming/uncompressed/yuv/1080p/dwMaxBitRate
+        echo 710000  > demo/functions/uvc./streaming/uncompressed/yuv/1080p/dwDefaultFrameInterval
+        echo 0       > demo/functions/uvc./streaming/uncompressed/yuv/1080p/bmCapabilities
+
+	## mjpeg ##
+	echo 0       > demo/functions/uvc./streaming/mjpeg/jpeg/bmaControls
+	echo 2       > demo/functions/uvc./streaming/mjpeg/jpeg/bDefaultFrameIndex
+
+	## mjpeg.360p ##
+cat <<EOF > demo/functions/uvc./streaming/mjpeg/jpeg/360p/dwFrameInterval
+333333
+666666
+EOF
+	echo 640	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/wWidth
+	echo 360	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/wHeight
+	echo 460800   	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/dwMaxVideoFrameBufferSize
+	echo 55296000 	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/dwMinBitRate
+	echo 110592000	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/dwMaxBitRate
+	echo 333333   	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/dwDefaultFrameInterval
+	echo 0x00	> demo/functions/uvc./streaming/mjpeg/jpeg/360p/bmCapabilities
+
+	## mjpeg.480p ##
+cat <<EOF > demo/functions/uvc./streaming/mjpeg/jpeg/480p/dwFrameInterval
+333333
+666666
+EOF
+	echo 640	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/wWidth
+	echo 480	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/wHeight
+	echo 614400   	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/dwMaxVideoFrameBufferSize
+	echo 73728000 	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/dwMinBitRate
+	echo 147456000	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/dwMaxBitRate
+	echo 333333  	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/dwDefaultFrameInterval
+	echo 0x00	> demo/functions/uvc./streaming/mjpeg/jpeg/480p/bmCapabilities
+
+	## mjpeg.720p ##
+cat <<EOF > demo/functions/uvc./streaming/mjpeg/jpeg/720p/dwFrameInterval
+333333
+666666
+EOF
+	echo 1280	> demo/functions/uvc./streaming/mjpeg/jpeg/720p/wWidth
+	echo 720	> demo/functions/uvc./streaming/mjpeg/jpeg/720p/wHeight
+	echo 1843200   	> demo/functions/uvc./streaming/mjpeg/jpeg/720p/dwMaxVideoFrameBufferSize
+	echo 221184000 	> demo/functions/uvc./streaming/mjpeg/jpeg/720p/dwMinBitRate
+	echo 442368000	> demo/functions/uvc./streaming/mjpeg/jpeg/720p/dwMaxBitRate
+	echo 333333     > demo/functions/uvc./streaming/mjpeg/jpeg/720p/dwDefaultFrameInterval
+	echo 0x00	> demo/functions/uvc./streaming/mjpeg/jpeg/720p/bmCapabilities
+
+	## mjpeg.1080p ##
+cat <<EOF > demo/functions/uvc./streaming/mjpeg/jpeg/1080p/dwFrameInterval
+710000
+2000000
+EOF
+	echo 1920	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/wWidth
+	echo 1080	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/wHeight
+	echo 4147200  	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/dwMaxVideoFrameBufferSize
+	echo 165888000 	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/dwMinBitRate
+	echo 464486400	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/dwMaxBitRate
+	echo 710000 	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/dwDefaultFrameInterval
+	echo 0x00	> demo/functions/uvc./streaming/mjpeg/jpeg/1080p/bmCapabilities
+
+
+
+	ln -s demo/functions/uvc./streaming/uncompressed/yuv demo/functions/uvc./streaming/header/h
+	ln -s demo/functions/uvc./streaming/mjpeg/jpeg demo/functions/uvc./streaming/header/h
+
+	ln -s demo/functions/uvc./streaming/header/h demo/functions/uvc./streaming/class/fs/
+	ln -s demo/functions/uvc./streaming/header/h demo/functions/uvc./streaming/class/hs/
+
+
+	ln -s demo/functions/uvc. demo/configs/c.1
+	;;
+  poststart)
+
+	if [ ! -d demo/configs/c.1/uvc. ]; then
+		exit 0
+	fi
+	start_uvc_cameras
+
+	;;
+  stop)
+	echo "Stop usb uvc devices ..."
+	if [ ! -d demo/configs/c.1/uvc. ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/uvc.
+	#rm demo/functions/uvc./streaming/class/fs/
+	#rm demo/functions/uvc./streaming/class/hs/
+	#rm demo/functions/uvc./streaming/header/h
+	#rm demo/functions/uvc./streaming/uncompressed/yuv/1080p
+	#rm demo/functions/uvc./streaming/uncompressed/yuv/720p
+	#rm demo/functions/uvc./streaming/uncompressed/yuv/360p
+	#rm demo/functions/uvc./streaming/uncompressed/yuv
+	#rm demo/functions/uvc./streaming/header/h
+	#rm demo/functions/uvc./control/class/ss/
+	#rm demo/functions/uvc./control/class/fs/
+	#rm demo/functions/uvc./control/header/h
+	#rm demo/functions/uvc.
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart|poststart}"
+	exit 1
+esac
+
+exit $?
+

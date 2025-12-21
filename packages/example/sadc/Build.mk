@@ -1,0 +1,10 @@
+LOCAL_PATH := $(my-dir)
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := sadc_sample
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH:=$(TARGET_FS_BUILD)/$(TARGET_TESTSUIT_DIR)/$(LOCAL_MODULE)
+LOCAL_SRC_FILES := sadc_demo.c
+LOCAL_LDLIBS := -lc
+include $(BUILD_EXECUTABLE)
+

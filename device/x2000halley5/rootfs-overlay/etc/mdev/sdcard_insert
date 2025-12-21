@@ -1,0 +1,13 @@
+#!/bin/sh
+
+mkdir -p /usr/mmcdata
+
+if [ -d /sys/block/*/$MDEV ]; then
+	mkdir -p /usr/mmcdata/$MDEV
+	mount /dev/$MDEV /usr/mmcdata/$MDEV
+	if [ $? -gt 0 ];then
+		mkfs.ext4 /dev/$MDEV
+		mount -t ext4 /dev/$MDEV /usr/mmcdata/$MDEV
+	fi
+
+fi

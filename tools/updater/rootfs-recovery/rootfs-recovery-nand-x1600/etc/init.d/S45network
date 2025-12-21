@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# start Ethernet
+#ifconfig eth0 10.1.4.241 up
+
+#udhcpc -i eth0 &
+
+# start Wifi
+#wifi_start -n TP-LINK_E283 -p ingenic*123
+
+# start Wifi
+rfkill unblock wifi
+ifconfig wlan0 up
+ifconfig lo up
+
+wpa_supplicant -i wlan0 -c "/etc/wpa_supplicant.conf" &
+udhcpc -i wlan0 &
+
+

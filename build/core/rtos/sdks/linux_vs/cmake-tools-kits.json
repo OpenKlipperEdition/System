@@ -1,0 +1,10 @@
+[
+    {
+        "name": "sdk-$(DEVICE_COMPILER_PREFIX)",
+        "compilers": {
+          "C": "${workspaceFolder}/prebuilts/toolchains/mips-gcc-glibc/bin/$(DEVICE_COMPILER_PREFIX)-gcc",
+          "CXX": "${workspaceFolder}/prebuilts/toolchains/mips-gcc-glibc/bin/$(DEVICE_COMPILER_PREFIX)-g++"
+        },
+        "toolchainFile": "${workspaceFolder}/cmake/mips.cmake"
+      }
+]

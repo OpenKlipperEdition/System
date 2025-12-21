@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+# start usb printer
+#
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb printer devices ..."
+
+	mkdir -p demo/functions/printer.0
+	if [ $? != 0 ]; then
+		echo "unable to create function printer. check kernel config!"
+		exit 1
+	fi
+	echo 10 > demo/functions/printer.0/q_len
+	echo "MFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;" > demo/functions/printer.0/pnp_string
+
+	ln -s demo/functions/printer.0/ demo/configs/c.1/
+
+	;;
+  stop)
+	echo "Stop usb printer devices ..."
+	if [ ! -d demo/configs/c.1/printer.0 ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/printer.0
+	rmdir demo/functions/printer.0
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

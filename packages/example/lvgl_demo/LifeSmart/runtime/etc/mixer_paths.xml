@@ -1,0 +1,67 @@
+<mixer>
+  <!-- These are the initial mixer settings -->
+  <ctl name="AOLO Vmux" value="LO-ON" />
+  <ctl name="AOHP Vmux" value="HP-ON" />
+  <ctl name="AOLO Mux" value="DACL/R" />
+  <ctl name="Digital Playback Volume" value="31" />
+  <ctl name="Headphone Volume" value="25" />
+  <ctl name="ADC Mux" value="AIL/L" />
+  <ctl name="AIL Mux" value="AIPN1" />
+  <ctl name="Mic Stereo Switch" value="0" />
+  <ctl name="Mic1 Diff Switch" value="1" />
+  <ctl name="ADC High Pass Filter Switch" value="1" />
+  <ctl name="Digital Capture Volume" value="15" />
+  <ctl name="Mic1 Volume" value="5" />
+  <ctl name="Mic2 Volume" value="0" />
+  <ctl name="Bypass1 Volume" value="0" />
+  <ctl name="Bypass2 Volume" value="0" />
+
+  <!-- These are commonly used control sequences -->
+  <path name="speaker-headphone">
+    <ctl name="AOLO Vmux" value="LO-ON" />
+    <ctl name="AOHP Vmux" value="HP-ON" />
+    <ctl name="AOLO Mux" value="DACL/R" />
+    <ctl name="AOHP Mux" value="DACL/R" />
+    <ctl name="Digital Playback Volume" value="31" />
+    <ctl name="Headphone Volume" value="25" />
+  </path>
+
+  <path name="speaker">
+    <ctl name="AOLO Vmux" value="LO-ON" />
+    <ctl name="AOHP Vmux" value="HP-ON" />
+    <ctl name="AOLO Mux" value="DACL/R" />
+    <ctl name="AOHP Mux" value="DACL/R" />
+    <ctl name="Digital Playback Volume" value="31" />
+    <ctl name="Headphone Volume" value="25" />
+  </path>
+
+  <path name="headphone">
+    <ctl name="AOLO Vmux" value="LO-ON" />
+    <ctl name="AOHP Vmux" value="HP-ON" />
+    <ctl name="AOLO Mux" value="DACL/R" />
+    <ctl name="AOHP Mux" value="DACL/R" />
+    <ctl name="Digital Playback Volume" value="31" />
+    <ctl name="Headphone Volume" value="25" />
+  </path>
+
+  <path name="buildin-mic">
+    <ctl name="ADC Mux" value="AIL/L" />
+    <ctl name="AIL Mux" value="AIPN1" />
+    <ctl name="Mic1 Diff Switch" value="1" />
+    <ctl name="Mic Stereo Switch" value="0" />
+    <ctl name="ADC High Pass Filter Switch" value="1" />
+    <ctl name="Mic1 Volume" value="5" />
+    <ctl name="Digital Capture Volume" value="15" />
+  </path>
+
+  <path name="headset-mic">
+    <ctl name="ADC Mux" value="AIL/L" />
+    <ctl name="AIL Mux" value="AIPN1" />
+    <ctl name="Mic1 Diff Switch" value="1" />
+    <ctl name="Mic Stereo Switch" value="0" />
+    <ctl name="ADC High Pass Filter Switch" value="1" />
+    <ctl name="Mic1 Volume" value="5" />
+    <ctl name="Digital Capture Volume" value="15" />
+  </path>
+
+</mixer>

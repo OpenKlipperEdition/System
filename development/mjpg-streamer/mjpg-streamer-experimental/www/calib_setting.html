@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" >
+	<head>
+		<title>MJPG-streamer</title>
+		<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+		<link rel="stylesheet" href="style.css" type="text/css" />
+		<script type="text/javascript" src="jquery.js"></script>
+		<script type="text/javascript" src="jquery.rotate.js"></script>
+		<!--[if IE 6]>
+			<link rel="stylesheet" href="fix.css" type="text/css" />
+		<![endif]-->
+		<style>
+			.table {display:table;}
+			.row {display:table-row;}
+			.cell {display:table-cell;padding:5px;font:bold 12px arial}
+			.label {text-align:right;}
+		</style>
+	</head>
+
+	<body>
+		<div id="sidebar">
+			<h1>MJPG-Streamer Demo Pages</h1>
+			<h2>a resource-friendly streaming application</h2>
+
+			<div id="menu">
+				<a href="index.html">Home</a>
+				<a href="stream.html">Stream</a>
+				<a href="static.html">Static</a>
+				<a href="snapshot.html">Snapshot</a>
+				<a href="calibrate.html">Calibrate</a>
+				<a class="active" href="calib_setting.html">CalibSetting</a>
+				<a href="setting.html">Setting</a>
+				<a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
+			</div>
+
+			<h3>Version info:</h3>
+			<p>v0.1 (Okt 22, 2007)</p>
+		</div>
+
+		<div id="content">
+			<h1>CalibSetting</h1>
+			<h2>setting calibrate param</h2>
+
+			<p class="xform-p"></p>
+			<form>
+				<div class="table" >
+					<div class="row" >
+						<div class="cell label">board_shape_W :</div>
+						<div class="cell "><input id="bs_w"></div>
+						<div class="cell label">board_shape_H :</div>
+						<div class="cell "><input id="bs_h"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">image_size_W :</div>
+						<div class="cell "><input id="is_w"></div>
+						<div class="cell label">image_size_H :</div>
+						<div class="cell "><input id="is_h"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">square_measure :</div>
+						<div class="cell "><input id="sm"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">low_right_coord_x :</div>
+						<div class="cell "><input id="lrc_x"></div>
+						<div class="cell label">low_right_coord_y :</div>
+						<div class="cell "><input id="lrc_y"></div>
+					</div>
+					<p class="xform"></p>
+				</div>
+				<div>
+					<button id = "loadparam" type="button">LoadDefaultParam</button>
+					<button id = "savecusparam" type="button">SaveSgbmParam</button>
+					<button id = "loadcusparam" type="button">LoadSgbmParam</button>
+				</div>
+			</form>
+		</div>
+
+		<script type="text/javascript" >
+var loadRequest;
+var saveCusRequest;
+var loadCusRequest;
+var sourceParam = "calibParam.json"
+var cusParam = "calibParam_custom.json"
+var sendFileName;
+
+window.onload=function(){
+		loadCusParamFromServer();
+}
+
+document.getElementById("loadparam").onclick = loadParamFromServer;
+function loadParamFromServer(e){
+	sendFileName = sourceParam;
+	sendRequest();
+}
+
+document.getElementById("loadcusparam").onclick = loadCusParamFromServer;
+function loadCusParamFromServer(e){
+	sendFileName = cusParam;
+	sendRequest();
+}
+
+function sendRequest(){
+	loadRequest = new XMLHttpRequest();
+	loadRequest.onreadystatechange = loadResponse;
+	loadRequest.reponseType = 'json';
+	loadRequest.open("POST","/loadparam");
+	loadRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	var value = {"filename":sendFileName};
+	var tmp = JSON.stringify(value);
+	console.log(tmp);
+	loadRequest.send(tmp);
+}
+
+function loadResponse(){
+	if (loadRequest.readyState == 4 && loadRequest.status == 200){
+		var obj = loadRequest.response;
+		var json = JSON.parse(obj);
+		getValue(json);
+	}
+}
+
+function getValue(json){
+		document.getElementById("bs_w").value = json.bs_w;
+		document.getElementById("bs_h").value = json.bs_h;
+		document.getElementById("is_w").value = json.is_w;
+		document.getElementById("is_h").value = json.is_h;
+		document.getElementById("lrc_x").value = json.lrc_x;
+		document.getElementById("lrc_y").value = json.lrc_y;
+		document.getElementById("sm").value = json.sm;
+}
+
+document.getElementById("savecusparam").onclick = saveParamToServer;
+function saveParamToServer(){
+	saveCusRequest = new XMLHttpRequest();
+	saveCusRequest.open("POST","/saveparam");
+	saveCusRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	var value = {
+		"filename" : cusParam,
+		"bs_w" : document.getElementById("bs_w").value,
+		"bs_h" : document.getElementById("bs_h").value,
+		"is_w" : document.getElementById("is_w").value,
+		"is_h" : document.getElementById("is_h").value,
+		"lrc_x" : document.getElementById("lrc_x").value,
+		"lrc_y" : document.getElementById("lrc_y").value,
+		"sm" : document.getElementById("sm").value
+	};
+	var tmp = JSON.stringify(value);
+	console.log(tmp);
+	saveCusRequest.send(tmp);
+}
+
+
+		</script>
+	</body>
+</html>

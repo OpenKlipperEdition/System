@@ -1,0 +1,15 @@
+write
+close
+open
+fstat
+isatty
+lseek
+read
+elog_file_config
+elog_output
+elog_hexdump
+elog_init
+elog_set_fmt
+elog_set_text_color_enabled
+elog_start
+elog_deinit

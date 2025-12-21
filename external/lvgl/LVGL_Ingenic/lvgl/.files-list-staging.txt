@@ -1,0 +1,1 @@
+lvglbase,./usr/lib/liblvgl.so

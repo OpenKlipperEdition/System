@@ -1,0 +1,245 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+	<head>
+		<title>MJPG-streamer</title>
+		<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+		<link rel="stylesheet" href="style.css" type="text/css" />
+		<style>
+			canvas {border: thin sold black; margin:4px}
+		table{
+			border: solid thin black;
+			border-collapse: collapse;
+			margin:10px;
+		}
+		td {padding: 4px 5px;}
+		</style>
+	</head>
+
+	<body>
+		<div id="sidebar">
+			<h1>MJPG-Streamer Demo Pages</h1>
+			<h2>a resource-friendly streaming application</h2>
+
+			<div id="menu">
+				<a href="index.html">Home</a>
+				<a href="stream.html">Stream</a>
+                <a href="calibrate.html">Calibrate</a>
+                <a href="setting.html">SetSgbm</a>
+                <a class="active" href="static.html">GetDepth</a>
+                <a href="snapshot.html">Snapshot</a>
+			</div>
+			<h3>Version info:</h3>
+			<p>v0.1 (Okt 22, 2007)</p>
+		</div>
+
+		<div id="content">
+			<h1>GetDepth</h1>
+			<h2>Compute Picture Depth</h2>
+
+            <script type="text/javascript">
+
+httpRequest = new XMLHttpRequest();
+httpRequest.onreadystatechange = handleResponse;
+httpRequest.reponseType = 'json'
+httpRequest.open("POST","/env_check");
+httpRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+httpRequest.send();
+
+function handleResponse(){
+    if (httpRequest.readyState == 4 && httpRequest.status == 200){
+        var obj = httpRequest.response;
+        console.log(obj);
+        var json = JSON.parse(obj);
+        var result = json.env_isvalid;
+        console.log(result);
+        if (result == "YES") {
+            document.getElementById("capture").src ="/?action=capture";
+        } else {
+            window.stop();
+            alert("Can Not Find Calibrate Parameter File, Please Calibrate Camera First");
+            document.location.href = 'calibrate.html';
+        }
+    }
+}
+
+            </script>
+
+			<button onclick="javascrtpt:window.location.href='stream.html'">Return stream</button>
+			<p class="xform-p"></p>
+			<p id="streamwrap" class="xform-p">
+			<img id="capture" hidden  />
+			<canvas id="myCanvas" width="640" height="480" onmousemove="cnvs_getCoordinates(event)" onmouseout="cnvs_clearCoordinates()" />
+			</p>
+
+			<p><canvas id="canvasbck" hidden width="640" height="480"/></p>
+
+			<p class="xform-p"></p>
+			<div id="xycoordinates"></div>
+			<p class="xform-p"></p>
+			<form action="/getdepth" method="post" name="cooderform" enctype="application/json">
+				<div>
+					<button id= "getdepth" type="button">GetDepth</button>
+					<button id= "restore" type="button" >Restore</button>
+				</div>
+			</form>
+			<p class="xform-p"></p>
+
+
+			<h4>Return Result</h4>
+			<table border="1" id="table">
+				<thead><tr><th>Rect Name</th><th>Photo Coordinates</th>	<th>World Coordinates</th></tr><thead>
+						<tbody id="resultBody">
+			</table>
+
+
+			<script type="text/javascript">
+var canvasElem = document.getElementById("myCanvas");
+var ctx = canvasElem.getContext("2d");
+var canvasElembck = document.getElementById("canvasbck");
+var ctxbck= canvasElembck.getContext("2d");
+var imageElement = document.getElementById("capture");
+var rectNum = 0;
+var rectName;
+var value = 0;
+var ox,oy,ox2,oy2;
+var avx,avy,avz,avdisp;
+
+function cnvs_getCoordinates(e){
+	if (e.offsetX) {
+		var	tx = e.offsetX;
+		var	ty = e.offsetY;
+	}
+	document.getElementById("xycoordinates").innerHTML="Coordinates: (" + tx + "," + ty + ")";
+}
+
+function cnvs_clearCoordinates(){
+	document.getElementById("xycoordinates").innerHTML="Coordinates: ";
+}
+
+window.onload = function () {
+	ctx.drawImage(imageElement,0,0);
+	ctxbck.drawImage(canvasElem,0,0);
+}
+
+document.getElementById("restore").onclick = handleImageRestore;
+function handleImageRestore(){
+	console.log("press restore");
+	ctx.drawImage(canvasElembck,0,0);
+	removetable();
+	rectNum = 0;
+	value = 0;
+}
+
+canvasElem.onmousedown = function(e) {
+	ctx.beginPath();
+	ctx.fillStyle = 'yellow';
+	ctx.strokeStyle = 'blue';
+
+	var e = e || window.event;
+	ox = e.offsetX;
+	oy = e.offsetY;
+	ctx.moveTo(ox,oy);
+
+	document.onmouseup  = function(e){
+		ox2 = e.offsetX;
+		oy2 = e.offsetY;
+		if(ox2 < ox){
+			var tmp = ox2;
+			ox2 = ox ;
+			ox = tmp;
+		}
+		if(oy2 < oy){
+			var tmp = oy2;
+			oy2 = oy ;
+			oy = tmp;
+		}
+
+		rectName = "R" + rectNum ;
+		value = {"x1":ox, "y1":oy, "x2":ox2, "y2":oy2};
+
+		ctx.rect(ox,oy,ox2-ox,oy2-oy);
+		ctx.stroke();
+		ctx.font = "bold 12px arial"
+		ctx.fillText("Start: (" + ox + "," + oy + "),end( "+ ox2 + "," + oy2 + ")" ,ox,oy-5);
+		ctx.fillText(rectName ,ox2+5,oy2);
+
+		rectNum++ ;
+
+		document.onmousemove =null;
+		document.onmouseup = null;
+	}
+}
+
+
+document.getElementById("getdepth").onclick = handleSubmitPress;
+function handleSubmitPress(e){
+	e.preventDefault();
+	httpRequest = new XMLHttpRequest();
+	httpRequest.onreadystatechange = handleResponse;
+	httpRequest.reponseType = 'json'
+
+	httpRequest.open("POST","/getdepth",true);
+	httpRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	if(value){
+		var tmp = JSON.stringify(value);
+		console.log(tmp);
+		httpRequest.send(JSON.stringify(value));
+		value = 0;
+	}
+}
+
+function handleResponse(){
+	if (httpRequest.readyState == 4 && httpRequest.status == 200){
+		var obj = httpRequest.response;
+		console.log(obj);
+		var json = JSON.parse(obj);
+
+		avx = json.point1_x;
+		avy = json.point1_y;
+		avz = json.point1_z;
+		avdisp = json.point1_disp;
+		var tableBody = document.getElementById("resultBody");
+		addtable(tableBody,rectName,rectNum,ox,oy,ox2,oy2,avx,avy,avz,avdisp);
+	}
+}
+
+function addtable(tableBody,name,num,ix,iy,ix2,iy2,iavx,iavy,iavz,iavdisp){
+	var row = tableBody.appendChild(document.createElement("tr"));
+	var rowName = "row" + num;
+	console.log(rowName);
+	row.setAttribute("id",rowName);
+
+	var col1 = row.appendChild(document.createElement("td"));
+	var col1div= col1.appendChild(document.createElement("div"));
+	var col1id = "div" + num + "1";
+	col1div.setAttribute("id",col1id);
+
+	var col2 = row.appendChild(document.createElement("td"));
+	var col2div= col2.appendChild(document.createElement("div"));
+	var col2id = "div" + num + "2";
+	col2div.setAttribute("id",col2id);
+
+	var col3 = row.appendChild(document.createElement("td"));
+	var col3div= col3.appendChild(document.createElement("div"));
+	var col3id = "div" + num + "3";
+	col3div.setAttribute("id",col3id);
+
+	document.getElementById(col1id).innerHTML= name  ;
+	document.getElementById(col2id).innerHTML= "start:(" + ix  +"," + iy+"), end:(" + ix2 +"," + iy2 + ");" ;
+	document.getElementById(col3id).innerHTML= "x: " + iavx + ",\n y:" + iavy +",\n z:" + iavz + ",\n disp:" + iavdisp;
+
+}
+
+function removetable(){
+	var row = document.getElementById("resultBody");
+	while(row.firstChild){
+		row.removeChild(row.firstChild);
+	}
+}
+
+	</script>
+
+
+	</body>
+<html>

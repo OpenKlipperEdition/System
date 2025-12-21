@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# start uac1
+#
+
+
+function start_uac_aplay()
+{
+
+	# playback
+	#amixer cset name='LO0_MUX' LI8
+
+	# capture
+	#amixer cset name='LO6_MUX' LI2
+
+	#amixer  cset name='ICODEC HPOUTL GAIN' 18
+
+	arecord -f dat -t wav -D hw:1,0 | aplay -D hw:0,0 &
+}
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting uac1 devices ..."
+
+	mkdir -p demo/functions/uac1.0
+	if [ $? != 0 ]; then
+		echo "unable to create function uac1. check kernel config!"
+		exit 1
+	fi
+
+	echo 3		> demo/functions/uac1.0/c_chmask
+	echo 48000	> demo/functions/uac1.0/c_srate
+	echo 2		> demo/functions/uac1.0/c_ssize
+	echo 3		> demo/functions/uac1.0/p_chmask
+	echo 48000	> demo/functions/uac1.0/p_srate
+	echo 2		> demo/functions/uac1.0/p_ssize
+
+	ln -s demo/functions/uac1.0/ demo/configs/c.1/
+
+	;;
+  poststart)
+
+	if [ ! -d demo/configs/c.1/uac1.0 ]; then
+		exit 0
+	fi
+	start_uac_aplay
+
+	;;
+  stop)
+	echo "Stop usb uac1 devices ..."
+	if [ ! -d demo/configs/c.1/uac1.0 ];then
+		exit 0
+	fi
+
+	killall -9 arecord
+	rm -r demo/configs/c.1/uac1.0
+	rmdir demo/functions/uac1.0
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Start rndis....
+#
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb rndis devices ..."
+
+	mkdir -p demo/functions/rndis.0
+	if [ $? != 0 ]; then
+		echo "unable to create function rndis, check kernel config!"
+		exit 1
+	fi
+	ln -s demo/functions/rndis.0 demo/configs/c.1/
+
+	;;
+  stop)
+	echo "Stop usb rndis devices ..."
+	if [ ! -d demo/configs/c.1/rndis.0 ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/rndis.0
+	rmdir demo/functions/rndis.0
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+exit $?

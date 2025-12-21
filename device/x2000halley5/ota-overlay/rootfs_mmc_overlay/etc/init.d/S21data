@@ -1,0 +1,35 @@
+#!/bin/sh
+FILE="/etc/ota_res/partition_mmc.conf"
+if [ -e "${FILE}" ]
+then
+	USERDATA_PARTITION=`awk -F= '{print $2}' ${FILE} |  grep userdata | awk -F, '{print $4}'`
+	if [ -z "${USERDATA_PARTITION}" ]
+	then
+		echo "Not resolved to userdata partition!!!!"
+		exit
+	else
+		MOUNT_PARTITION="/dev/${USERDATA_PARTITION}"
+		echo "The usardata mounting partition is ${MOUNT_PARTITION}"
+	fi
+else
+	echo "${FILE} file does not exist."
+	exit
+fi
+MOUNT_PATH="/usr/data"
+
+
+case "$1" in
+	start)
+		mount_mmc_partition.sh ${MOUNT_PARTITION} ${MOUNT_PATH}
+		;;
+	stop)
+		/bin/umount ${MOUNT_PATH}
+		;;
+	restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		;;
+esac
+
+exit $?

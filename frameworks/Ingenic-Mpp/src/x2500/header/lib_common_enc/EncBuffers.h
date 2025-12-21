@@ -1,0 +1,150 @@
+/* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved. */
+/**************************************************************************//*!
+   \addtogroup Encoder_Buffers Buffer size
+   \ingroup Encoder
+
+   @{
+   \file
+ *****************************************************************************/
+#pragma once
+
+#include "lib_rtos/lib_rtos.h"
+#include "lib_rtos/types.h"
+
+#include "lib_common/SliceConsts.h"
+#include "lib_common/BufCommon.h"
+
+#include "lib_common_enc/EncChanParam.h"
+
+// EP2 masks
+#if 0 //solve error: enumerator value for 'AL_ROI_QUALITY_STATIC' is not an integer constant
+static int8_t const MASK_QP = (int8_t)0x3F;
+static int8_t const MASK_FORCE_INTRA = (int8_t)0x40;
+static int8_t const MASK_FORCE_MV0 = (int8_t)0x80;
+static int8_t const MASK_FORCE = (int8_t)0xC0;
+#else
+#define MASK_QP           0x3F
+#define MASK_FORCE_INTRA  0x40
+#define MASK_FORCE_MV0    0x80
+#define MASK_FORCE        0xC0
+#endif
+
+// Encoder Parameter Buf 2 Flag,  Size, Offset
+static const AL_TBufInfo EP2_BUF_QP_CTRL =
+{
+  1, 48, 0
+}; // only 20 bytes used
+static const AL_TBufInfo EP2_BUF_SEG_CTRL =
+{
+  2, 16, 48
+};
+static const AL_TBufInfo EP2_BUF_QP_BY_MB =
+{
+  4, 0, 64
+}; // no fixed size
+
+/*************************************************************************//*!
+   \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
+   \param[in] tDim Frame size in pixels
+   \param[in] eCodec Codec
+   \return maximum size (in bytes) needed to store
+*****************************************************************************/
+uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec);
+
+// AL_DEPRECATED("Doesn't support pitch different of AL_EncGetMinPitch. Use AL_GetAllocSizeSrc(). Will be removed in 0.9")
+uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of a Source YUV frame buffer
+   \param[in] tDim Frame size in pixels
+   \param[in] eChromaMode Chroma Mode
+   \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] iPitch Pitch / stride of the source frame buffer
+   \param[in] iStrideHeight The height used for buffer allocation. Might be
+   greater than the frame height when frame-height is non 8-multiple, or to
+   customize offset between luma and chroma.
+   \return maximum size (in bytes) needed for the YUV frame buffer
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the luma component of a YUV frame buffer
+   \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] iPitch Pitch / stride of the source frame buffer
+   \param[in] iStrideHeight The height used for buffer allocation
+   \return maximum size (in bytes) needed for the luma component
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_Y(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the choma component of a YUV frame buffer
+   \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] iPitch Pitch / stride of the source frame buffer
+   \param[in] iStrideHeight The height used for buffer allocation
+   \param[in] eChromaMode Chroma Mode
+   \return maximum size (in bytes) needed for the chroma component
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_UV(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the luma map component of a YUV frame buffer
+   \param[in] tDim Frame size in pixels
+   \param[in] eSrcFmt Source format used by the HW IP
+   \return maximum size (in bytes) needed for the luma map component
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_MapY(AL_TDimension tDim, AL_ESrcMode eSrcFmt);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the chroma map component of a YUV frame buffer
+   \param[in] tDim Frame size in pixels
+   \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] eChromaMode Chroma Mode
+   \return maximum size (in bytes) needed for the chroma map component
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_MapUV(AL_TDimension tDim, AL_ESrcMode eSrcFmt, AL_EChromaMode eChromaMode);
+
+/*************************************************************************//*!
+   \brief Retrieves the minimal pitch value supported by the ip depending
+   on the source format
+   \param[in] iWidth Frame width in pixel unit
+   \param[in] uBitDepth YUV bit-depth
+   \param[in] eStorageMode Source Storage Mode
+   \return pitch value in bytes
+*****************************************************************************/
+int AL_EncGetMinPitch(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
+
+AL_DEPRECATED("Renamed as AL_EncGetMinPitch, Will be removed in 0.9")
+int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
+
+/*************************************************************************//*!
+   \brief Retrieves the Source frame buffer storage mode depending on Source mode
+   \param[in] eSrcMode Source Mode
+   \return Source Storage Mode
+*****************************************************************************/
+AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode);
+
+/*************************************************************************//*!
+   \brief Check if the Source frame buffer is compressed depending on Source mode
+   \param[in] eSrcMode Source Mode
+   \return Source Storage Mode
+*****************************************************************************/
+bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode);
+
+/*************************************************************************//*!
+   \brief Get the pitch of the fbc map in encoder given compressed frame parameters
+   \param[in] uWidth Frame width in pixels
+   \return The pitch of the fbc map
+*****************************************************************************/
+uint16_t AL_GetEncoderFbcMapPitch(uint32_t uWidth);
+
+/*************************************************************************//*!
+   \brief Get the size of the fbc map in encoder given compressed frame parameters
+   \param[in] eChromaMode Chroma Mode
+   \param[in] tDim Frame size in pixels
+   \param[in] iMinCodedBlkSize Smallest coded block size in pixels
+   \return The size in byte of the fbc map
+*****************************************************************************/
+uint32_t AL_GetEncoderFbcMapSize(AL_EChromaMode eChromaMode, AL_TDimension tDim, int iMinCodedBlkSize);
+
+/*@}*/
+

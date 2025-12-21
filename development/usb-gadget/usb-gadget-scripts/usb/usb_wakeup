@@ -1,0 +1,29 @@
+#!/bin/sh
+
+prg_name=$0
+usb_state_app=$1
+udc_path=$2
+
+
+if [ "$#" != "2" ]; then
+    echo "Usage: $prg_name <usb_state_app_path> <udc_path>"
+    echo "       $prg_name /usb_state /sys/class/udc/13500000.otg"
+    exit 1
+fi
+
+if [ ! -f "$usb_state_app" ]; then
+    echo "$usb_state_app file not exist"
+    exit 1
+fi
+
+sleep 1
+
+while [ 1 ]
+do
+    $usb_state_app $udc_path "not attached" "powered" "suspended"
+
+    # system to sleep
+    echo "vender to do ..."
+    echo "mem" > /sys/power/state
+    sleep 1
+done

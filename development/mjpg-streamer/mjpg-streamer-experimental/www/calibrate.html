@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <head>
+    <title>MJPG-streamer</title>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+    <link rel="stylesheet" href="style.css" type="text/css" />
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="jquery.rotate.js"></script>
+  </head>
+
+  <body>
+    <div id="sidebar">
+      <h1>MJPG-Streamer Demo Pages</h1>
+      <h2>a resource-friendly streaming application</h2>
+
+      <div id="menu">
+        <a href="index.html">Home</a>
+        <a href="stream.html">Stream</a>
+        <a class="active" href="calibrate.html">Calibrate</a>
+        <a href="setting.html">SetSgbm</a>
+        <a href="static.html">GetDepth</a>
+        <a href="snapshot.html">Snapshot</a>
+      </div>
+
+      <h3>Version info:</h3>
+      <p>v0.1 (Okt 22, 2007)</p>
+    </div>
+
+    <div id="content">
+        <h1>Calibrate</h1>
+        <h2>Calibarate Camera</h2>
+        <p class="xform-p"></p>
+        <fieldset>
+            <legend> Set Camera Param For Calibrate: </legend>
+            <p><label for="name"> board_shape_W: <input id="bs_w"></lable>
+                <label for="name"> board_shape_H: <input id="bs_h"></lable> </p>
+            <p><label for="name">  image_size_W: <input id="is_w"></lable>
+                <label for="name">  image_size_H: <input id="is_h"></lable> </p>
+            <p><label for="name"> low_right_coord_x:  <input id="lrc_x"></lable>
+                <label for="name">  low_right_coord_y:  <input id="lrc_y"></lable> </p>
+            <p> <label for="name">square_measure :<input id="sm"></lable></p>
+            <div>
+                <button id = "loadparam" type="button">LoadDefaultParam</button>
+                <button id = "savecusparam" type="button">SaveSgbmParam</button>
+                <button id = "loadcusparam" type="button">LoadSgbmParam</button>
+            </div>
+        </fieldset>
+        <p class="xform-p"></p>
+        <p class="xform-p"></p>
+        <p class="xform-p"></p>
+
+        <img id="stream" width = 640 height = 240 src = "./?action=stream"/>
+        <p class="xform-p"></p>
+        <div>
+            <button type = "button" id = "calib_select"> calib_select </button>
+            <button type = "button" id = "calib_process"> calibrate </button>
+            <button type = "button" id = "rectify_check"> rectify </button>
+            <button type = "button" id = "calib_apply"> apply calibrate result </button>
+        </div>
+
+        <p class="xform-p">
+        <table id = "table">
+            <thead><tr>
+                    <th>
+                        <canvas id = "Canvas" width = 320 height = 160 />
+                    </th>
+                    <th style="text-align:Left;">
+                        <div id="calib_result" ></div>
+                    </th>
+                </tr></thead>
+        </table>
+        </p>
+
+    </div>
+	<script type="text/javascript">
+
+httpRequest = new XMLHttpRequest();
+httpRequest.reponseType = 'json'
+httpRequest.open("POST","/calib_clean");
+httpRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+httpRequest.send();
+
+function fn(url, callback) {
+    httpRequest = new XMLHttpRequest();
+    httpRequest.onreadystatechange = function() {
+        if (httpRequest.readyState == 4 && httpRequest.status == 200){
+            callback.call(httpRequest.responseXML);
+        }
+    };
+    httpRequest.open("POST", url);
+	httpRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+    httpRequest.send();
+}
+
+function parseResponse() {
+    var obj = httpRequest.response;
+    var json = JSON.parse(obj);
+    console.log(json);
+    return json;
+}
+
+var goodnum = 0;
+var badnum = 0;
+var ctx = document.getElementById("Canvas").getContext("2d");
+document.getElementById("calib_select").onclick = CalibSeclect;
+function CalibSeclect() {
+    var imageElement = document.getElementById("stream");
+    ctx.drawImage(imageElement,0,0,320,160);
+    fn("calib_select",function(){
+        var json = parseResponse();
+        var result = json.pattern;
+        console.log(result);
+        if(result == "good")
+            goodnum++ ;
+        else
+            badnum++;
+        document.getElementById("calib_result").innerHTML = "Good Pattern  : " + goodnum
+        + " , Bad Pattern : " + badnum ;
+    })
+}
+
+
+document.getElementById("calib_process").onclick = CalibProcess;
+function CalibProcess() {
+    document.getElementById("calib_result").innerHTML = "please wait ....";
+    fn("calib_process",function(){
+        var json = parseResponse();
+        var result = json.calibrate;
+        var lrms = json.lrms;
+        var rrms = json.rrms;
+        var stereorms = json.stereorms;
+        var MatQ = json.MatQ;
+        var MatT = json.MatT;
+        console.log(MatQ);
+        if(result == "success")
+            document.getElementById("calib_result").innerHTML = "Calibarate result is : " + result + "; <br> "
+            + " Left camera's RSM is : " +  lrms + "; <br>"
+            + " Right camera's RSM is : " +  rrms + "; <br>"
+            + " Stereo RSM is : " +  stereorms + "; <br>"
+            + " MatQ is : " + MatQ + "; <br> "
+            + " MatT is : " + MatT + "; <br> " ;
+        else
+            document.getElementById("calib_result").innerHTML = "Calibarate result is : " + result ;
+    })
+}
+
+document.getElementById("rectify_check").onclick = RectifyCheck;
+function RectifyCheck() {
+    var rectifyimgElement = document.getElementById("stream");
+    rectifyimgElement.src = "./?action=rectify_check";
+}
+
+document.getElementById("calib_apply").onclick = CalibApply;
+function CalibApply() {
+    fn("calib_apply",function(){
+        var json = parseResponse();
+        var result = json.calibrate_apply;
+        document.getElementById("calib_result").innerHTML = "calibarate apply result : " + result ;
+    })
+}
+
+
+var loadRequest;
+var saveCusRequest;
+var loadCusRequest;
+var sourceParam = "calibParam.json"
+var cusParam = "calibParam_custom.json"
+var sendFileName;
+
+window.onload=function(){
+		loadCusParamFromServer();
+}
+
+document.getElementById("loadparam").onclick = loadParamFromServer;
+function loadParamFromServer(e){
+	sendFileName = sourceParam;
+	sendRequest();
+}
+
+document.getElementById("loadcusparam").onclick = loadCusParamFromServer;
+function loadCusParamFromServer(e){
+	sendFileName = cusParam;
+	sendRequest();
+}
+
+function sendRequest(){
+	loadRequest = new XMLHttpRequest();
+	loadRequest.onreadystatechange = loadResponse;
+	loadRequest.reponseType = 'json';
+	loadRequest.open("POST","/loadparam");
+	loadRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	var value = {"filename":sendFileName};
+	var tmp = JSON.stringify(value);
+	console.log(tmp);
+	loadRequest.send(tmp);
+}
+
+function loadResponse(){
+	if (loadRequest.readyState == 4 && loadRequest.status == 200){
+		var obj = loadRequest.response;
+		var json = JSON.parse(obj);
+		getValue(json);
+	}
+}
+
+function getValue(json){
+		document.getElementById("bs_w").value = json.bs_w;
+		document.getElementById("bs_h").value = json.bs_h;
+		document.getElementById("is_w").value = json.is_w;
+		document.getElementById("is_h").value = json.is_h;
+		document.getElementById("lrc_x").value = json.lrc_x;
+		document.getElementById("lrc_y").value = json.lrc_y;
+		document.getElementById("sm").value = json.sm;
+}
+
+document.getElementById("savecusparam").onclick = saveParamToServer;
+function saveParamToServer(){
+	saveCusRequest = new XMLHttpRequest();
+	saveCusRequest.open("POST","/saveparam");
+	saveCusRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	var value = {
+		"filename" : cusParam,
+		"bs_w" : document.getElementById("bs_w").value,
+		"bs_h" : document.getElementById("bs_h").value,
+		"is_w" : document.getElementById("is_w").value,
+		"is_h" : document.getElementById("is_h").value,
+		"lrc_x" : document.getElementById("lrc_x").value,
+		"lrc_y" : document.getElementById("lrc_y").value,
+		"sm" : document.getElementById("sm").value
+	};
+	var tmp = JSON.stringify(value);
+	console.log(tmp);
+	saveCusRequest.send(tmp);
+}
+
+
+
+	</script>
+
+  </body>
+
+</html>

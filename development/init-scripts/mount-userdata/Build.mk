@@ -1,0 +1,8 @@
+LOCAL_PATH := $(my-dir)
+include $(CLEAR_VARS)
+CMAKE_PATH = $(LOCAL_PATH)
+LOCAL_MODULE := install-mount-userdata
+LOCAL_MODULE_TAGS := optional
+CMAKE_CONF_OPTS := -DSTORAGE_MEDIUM=$(TARGET_STORAGE_MEDIUM)
+include $(BUILD_CMAKE_DEVICE)
+

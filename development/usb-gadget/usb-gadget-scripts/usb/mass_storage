@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# start mass_storage
+#
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb mass_storage devices ..."
+
+	mkdir -p demo/functions/mass_storage.0
+	if [ $? != 0 ]; then
+		echo "unable to create function mass storage. check kernel config!"
+		exit 1
+	fi
+
+	ln -s demo/functions/mass_storage.0 demo/configs/c.1/
+
+	;;
+  stop)
+	echo "Stop usb mass_storage devices ..."
+	if [ ! -d demo/configs/c.1/mass_storage.0 ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/mass_storage.0
+	rmdir demo/functions/mass_storage.0
+	;;
+
+   poststart)
+	# default mmcblk0p8 as u-disk.
+	echo "/dev/mmcblk0p8" > demo/functions/mass_storage.0/lun.0/file
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

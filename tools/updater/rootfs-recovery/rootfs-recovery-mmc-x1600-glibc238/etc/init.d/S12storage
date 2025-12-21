@@ -1,0 +1,43 @@
+#!/bin/sh
+case "$1" in
+	start)
+		echo "Storage Init..."
+		echo "mount mmcblk0p9..."
+		while [ ! -b /dev/mmcblk0p9 ];do
+			echo "wait /dev/mmcblk0p9..."
+			wait
+		done
+		if [ ! -d "/storage" ]; then
+			mkdir -p /storage
+		fi
+		/bin/umount /storage
+		#checkfs
+		time e2fsck -y /dev/mmcblk0p9
+		#,inode_readahead_blks=4096
+		/bin/mount -t ext4 -o  defaults,noatime,nodiratime,nobarrier,discard /dev/mmcblk0p9 /storage
+		if [ $? -ne 0 ]
+		then
+			echo "mke2fs -t ext4 /dev/mmcblk0p9"
+			/sbin/mke2fs /dev/mmcblk0p9
+			/bin/mount -t ext4 -o defaults,noatime,nodiratime,nobarrier,discard /dev/mmcblk0p9 /storage
+		fi
+    	if [ ! -d /storage/mtp ]; then
+            mkdir -p /storage/mtp
+		fi
+    	if [ ! -d /storage/offline_trans ]; then
+            cp -r /data/offline_trans /storage
+        elif [ "`ls -A /storage/offline_trans`" = "" ]; then
+            cp -r /data/offline_trans /storage
+        fi
+		;;
+	stop)
+		/bin/umount /storage
+		;;
+	restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		;;
+esac
+
+exit $?

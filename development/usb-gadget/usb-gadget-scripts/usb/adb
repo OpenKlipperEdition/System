@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# start adb
+#
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb adb devices ..."
+
+	mkdir -p demo/functions/ffs.adb
+	if [ $? != 0 ]; then
+		echo "unable to create function adb. check kernel config!"
+		exit 1
+	fi
+
+	# path 由 adbd 应用程序决定. #define USB_FFS_ADB_PATH  "/dev/usb-ffs/adb/"
+	mkdir -p /dev/usb-ffs/adb
+	mount -t functionfs adb /dev/usb-ffs/adb
+
+	adbd &
+
+	ln -s demo/functions/ffs.adb demo/configs/c.1
+
+	;;
+  stop)
+	echo "Stop usb adb devices ..."
+	if [ ! -d demo/configs/c.1/ffs.adb ];then
+		exit 0
+	fi
+
+	killall adbd
+	rm -r demo/configs/c.1/ffs.adb
+	rmdir demo/functions/ffs.adb
+	umount /dev/usb-ffs/adb
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

@@ -1,0 +1,41 @@
+#!/bin/sh
+case "$1" in
+	start)
+		echo "/usr/data mount..."
+		echo "mount mmcblk0p7..."
+		while [ ! -b /dev/mmcblk0p7 ];do
+			echo "wait /dev/mmcblk0p7..."
+			wait
+		done
+		if [ ! -d "/usr/data" ]; then
+			mkdir -p /usr/data
+		fi
+		/bin/umount /usr/data
+		#checkfs
+		/bin/mount -t ext4 -o defaults,noatime,nodiratime,nobarrier,discard /dev/mmcblk0p7 /usr/data
+		if [ $? -ne 0 ]
+		then
+			echo "mke2fs -t ext4 /dev/mmcblk0p7"
+			/sbin/mke2fs /dev/mmcblk0p7
+			/bin/mount -t ext4 -o defaults,noatime,nodiratime,nobarrier,discard /dev/mmcblk0p7 /usr/data
+		fi
+		ln -s /usr/data/fbshow /usr/bin/fbshow
+		ln -s /usr/data/bsa_server_mips /usr/bin/bsa_server_mips
+		ln -s /usr/data/wpa_supplicant /usr/sbin/wpa_supplicant
+		ln -s /usr/data/libsysutils.so /lib/libsysutils.so
+		ln -s /usr/data/libcutils.so /lib/libcutils.so
+		ln -s /usr/data/libstdc++.so.6.0.24 /lib/libstdc++.so.6
+		ln -s /usr/data/libjpeg.so.8.2.2 /usr/lib/libjpeg.so.8
+		ln -s /usr/data/firmware/ /firmware
+		;;
+	stop)
+		/bin/umount /usr/data
+		;;
+	restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		;;
+esac
+
+exit $?

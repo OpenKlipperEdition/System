@@ -1,0 +1,5 @@
+# !/bin/sh
+sync
+echo "umount /usr/mmcdata/${MDEV}p8" >> /dev/console
+umount /usr/mmcdata/${MDEV}p8
+rm /usr/mmcdata/${MDEV}p8 -rf

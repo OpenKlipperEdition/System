@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" >
+	<head>
+		<title>MJPG-streamer</title>
+		<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+		<link rel="stylesheet" href="style.css" type="text/css" />
+		<script type="text/javascript" src="jquery.js"></script>
+		<script type="text/javascript" src="jquery.rotate.js"></script>
+		<!--[if IE 6]>
+			<link rel="stylesheet" href="fix.css" type="text/css" />
+		<![endif]-->
+		<style>
+			.table {display:table;}
+			.row {display:table-row;}
+			.cell {display:table-cell;padding:5px;font:bold 12px arial}
+			.label {text-align:right;}
+		</style>
+	</head>
+
+	<body>
+		<div id="sidebar">
+			<h1>MJPG-Streamer Demo Pages</h1>
+			<h2>a resource-friendly streaming application</h2>
+
+			<div id="menu">
+                <a href="index.html">Home</a>
+                <a href="stream.html">Stream</a>
+                <a href="calibrate.html">Calibrate</a>
+                <a class="active" href="setting.html">SetSgbm</a>
+                <a href="static.html">GetDepth</a>
+                <a href="snapshot.html">Snapshot</a>
+			</div>
+
+			<h3>Version info:</h3>
+			<p>v0.1 (Okt 22, 2007)</p>
+		</div>
+
+		<div id="content">
+			<h1>Setting</h1>
+			<h2>setting sgbm param</h2>
+
+			<p class="xform-p"></p>
+			<form>
+				<div class="table" >
+					<div class="row" >
+						<div class="cell label">sgbmParam.minDisparity :</div>
+						<div class="cell "><input id="minDisparity"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.numDisparities :</div>
+						<div class="cell "><input id="numDisparities"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.SADWindowSize :</div>
+						<div class="cell "><input id="SADWindowSize"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.preFilterCap :</div>
+						<div class="cell "><input id="preFilterCap"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.uniquenessRatio :</div>
+						<div class="cell "><input id="uniquenessRatio"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.P1 :</div>
+						<div class="cell "><input id="P1"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.P2 :</div>
+						<div class="cell "><input id="P2"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.speckleWindowSize :</div>
+						<div class="cell "><input id="speckleWindowSize"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.speckleRange :</div>
+						<div class="cell "><input id="speckleRange"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.disp12MaxDiff :</div>
+						<div class="cell "><input id="disp12MaxDiff"></div>
+					</div>
+					<div class="row" >
+						<div class="cell label">sgbmParam.mode :</div>
+						<div class="cell "><input id="mode"></div>
+					</div>
+					<p class="xform"></p>
+				</div>
+				<div>
+					<button id = "loadparam" type="button">LoadDefaultParam</button>
+					<button id = "savecusparam" type="button">SaveSgbmParam</button>
+					<button id = "loadcusparam" type="button">LoadSgbmParam</button>
+					<button id = "updatedisp" type="button">UpdateDisp</button>
+					<button id = "showdisp" type="button">ShowDisp</button>
+				</div>
+                <img id ="showdispimg"/>
+                <canvas id ="myCanvas" width=640 height=480 />
+			</form>
+		</div>
+
+		<script type="text/javascript" >
+var loadRequest;
+var saveCusRequest;
+var loadCusRequest;
+var sourceParam = "sgbmParam.json"
+var cusParam = "sgbmParam_custom.json"
+var sendFileName;
+
+window.onload=function(){
+		loadCusParamFromServer();
+}
+
+document.getElementById("loadparam").onclick = loadParamFromServer;
+function loadParamFromServer(e){
+	sendFileName = sourceParam;
+	sendRequest();
+}
+
+document.getElementById("loadcusparam").onclick = loadCusParamFromServer;
+function loadCusParamFromServer(e){
+	sendFileName = cusParam;
+	sendRequest();
+}
+
+function sendRequest(){
+	loadRequest = new XMLHttpRequest();
+	loadRequest.onreadystatechange = loadResponse;
+	loadRequest.reponseType = 'json';
+	loadRequest.open("POST","/loadparam");
+	loadRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	var value = {"filename":sendFileName};
+	var tmp = JSON.stringify(value);
+	console.log(tmp);
+	loadRequest.send(tmp);
+}
+
+function loadResponse(){
+	if (loadRequest.readyState == 4 && loadRequest.status == 200){
+		var obj = loadRequest.response;
+		var json = JSON.parse(obj);
+		getValue(json);
+	}
+}
+
+function getValue(json){
+		document.getElementById("minDisparity").value = json.minDisparity;
+		document.getElementById("numDisparities").value = json.numDisparities;
+		document.getElementById("SADWindowSize").value = json.SADWindowSize;
+		document.getElementById("preFilterCap").value = json.preFilterCap;
+		document.getElementById("uniquenessRatio").value = json.uniquenessRatio;
+		document.getElementById("P1").value = json.P1;
+		document.getElementById("P2").value = json.P2;
+		document.getElementById("speckleWindowSize").value = json.speckleWindowSize;
+		document.getElementById("speckleRange").value = json.speckleRange;
+		document.getElementById("disp12MaxDiff").value = json.disp12MaxDiff;
+		document.getElementById("mode").value = json.mode;
+		console.log(json);
+}
+
+document.getElementById("savecusparam").onclick = saveParamToServer;
+function saveParamToServer(){
+	saveCusRequest = new XMLHttpRequest();
+	saveCusRequest.open("POST","/saveparam");
+	saveCusRequest.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	var value = {
+		"filename" : cusParam,
+		"minDisparity" : document.getElementById("minDisparity").value ,
+		"numDisparities" : document.getElementById("numDisparities").value ,
+		"SADWindowSize" : document.getElementById("SADWindowSize").value,
+		"preFilterCap" : document.getElementById("preFilterCap").value,
+		"uniquenessRatio" : document.getElementById("uniquenessRatio").value,
+		"P1" : document.getElementById("P1").value,
+		"P2" : document.getElementById("P2").value,
+		"speckleWindowSize" : document.getElementById("speckleWindowSize").value,
+		"speckleRange" : document.getElementById("speckleRange").value,
+		"disp12MaxDiff" : document.getElementById("disp12MaxDiff").value,
+		"mode" : document.getElementById("mode").value
+	};
+	var tmp = JSON.stringify(value);
+	console.log(tmp);
+	saveCusRequest.send(tmp);
+}
+
+var updateDispRequest;
+document.getElementById("updatedisp").onclick = handleUpdateDisp;
+function handleUpdateDisp(){
+	updateDispRequest = new XMLHttpRequest();
+	updateDispRequest.open("GET","/updatedisp");
+	updateDispRequest.send();
+}
+
+var canvasElem = document.getElementById("myCanvas");
+var ctx = canvasElem.getContext("2d");
+document.getElementById("showdisp").onclick = handleShowDisp;
+function handleShowDisp(){
+	var imageElement = document.getElementById("showdispimg");
+    imageElement.src = "./?action=showdisp"
+	ctx.drawImage(imageElement,0,0);
+}
+
+		</script>
+	</body>
+</html>

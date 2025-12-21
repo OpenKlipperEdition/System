@@ -1,0 +1,46 @@
+diff --git a/arch/mips/boot/dts/ingenic/halley5_v20.dts b/arch/mips/boot/dts/ingenic/halley5_v20.dts
+index 0758983..60eea62 100644
+--- a/arch/mips/boot/dts/ingenic/halley5_v20.dts
++++ b/arch/mips/boot/dts/ingenic/halley5_v20.dts
+@@ -217,7 +217,7 @@
+ 	pinctrl-0 = <&sfc_pe>;
+ 	ingenic,sfc-init-frequency = <200000000>;
+ 	ingenic,sfc-max-frequency = <400000000>;
+-	ingenic,use_ofpart_info  = /bits/ 8 <0>;
++	ingenic,use_ofpart_info  = /bits/ 8 <1>;
+ 	ingenic,spiflash_param_offset = <0>;
+ 
+ 	norflash@0 {
+@@ -259,13 +259,28 @@
+ 			};
+ 
+ 			partition@100000 {
++				label = "nv";
++				reg = <0x100000 0x100000>;
++			};
++
++			partition@200000 {
+ 				label = "kernel";
+-				reg = <0x100000 0x800000>;
++				reg = <0x200000 0x800000>;
+ 			};
+ 
+-			partition@900000 {
+-				label = "rootfs";
+-				reg = <0x900000 0xf700000>;
++			partition@a00000 {
++				label = "recovery";
++				reg = <0xa00000 0x1000000>;
++			};
++
++			partition@1a00000 {
++				label = "system";
++				reg = <0x1a00000 0x6400000>;
++			};
++
++			partition@7e00000 {
++				label = "userdata";
++				reg = <0x7e00000 0x8200000>;
+ 			};
+ 		};
+ 	};

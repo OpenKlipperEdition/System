@@ -1,0 +1,12 @@
+[{
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.cmakePath": "D:\\CMake\\bin\\cmake.exe",
+    "cmake.mingwSearchDirs": [              // 搜索 MinGW 安装的路径列表
+        "${env:SystemDrive}/MinGW"
+    ],
+    "cmake.generator": "MinGW Makefiles",  // 设置生成器
+    "cmake.buildDirectory": "${workspaceFolder}/build/${buildKit}/${buildType}", // 指定构建目录
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+},
+
+]

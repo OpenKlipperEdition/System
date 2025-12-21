@@ -1,0 +1,41 @@
+
+#ifndef ENUM_LEDSTATE_H
+#define ENUM_LEDSTATE_H
+
+/* led control cmd */
+enum LedState {
+    LED_NET_RECOVERY = 0,
+    LED_NET_WAIT_CONNECT,
+    LED_NET_DO_CONNECT,
+    LED_NET_CONNECT_FAILED,
+    LED_NET_CONNECT_SUCCESS,
+
+    LED_WAKE_UP_DOA,    // param -180 ~ 180
+    LED_WAKE_UP,        // no param
+    LED_SPEECH_PARSE,
+    LED_PLAY_TTS,
+    LED_PLAY_RESOURCE,
+
+    LED_BT_WAIT_PAIR,
+    LED_BT_DO_PAIR,
+    LED_BT_PAIR_FAILED,
+    LED_BT_PAIR_SUCCESS,
+    LED_BT_PLAY,
+
+    LED_VOLUME,
+    LED_MUTE,
+
+    LED_DISABLE_DUEROS_MIC,
+
+    LED_ALARM,
+
+    LED_SLEEP_MODE,
+
+    LED_OTA_DOING,
+    LED_OTA_PROGRESS,
+    LED_CLOSE_A_LAYER,
+    LED_ALL_OFF,    // no param
+};
+
+
+#endif //ENUM_LEDSTATE_H

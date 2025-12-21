@@ -1,0 +1,10 @@
+menu "external driver"
+choice
+	prompt "Ext Board Name"
+	default DT_Template
+
+config DT_Template
+	bool "template board."
+
+endchoice
+endmenu

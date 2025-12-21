@@ -1,0 +1,97 @@
+#!/bin/sh
+#
+# Start mass_storage, adb, etc....
+#
+
+export CONFIGFS_HOME=/sys/kernel/config
+
+case "$1" in
+  start)
+	echo "Starting usb devices ..."
+	# usb common configs.
+
+	mount -t configfs none $CONFIGFS_HOME
+	cd $CONFIGFS_HOME/usb_gadget
+	mkdir -p demo/strings/0x409
+	echo 0x18d1 > demo/idVendor
+	echo 0xd002 > demo/idProduct
+	echo 0x200 > demo/bcdUSB
+	echo 0x100 > demo/bcdDevice
+	echo "ingenic" > demo/strings/0x409/manufacturer
+	echo "composite-demo" > demo/strings/0x409/product
+	#echo "0123456789ABCDEF" > demo/strings/0x409/serialnumber
+	board=`cat /proc/cpuinfo | grep machine | awk '{print $3}' | sed 's/,/-/g'`
+	echo $board > demo/strings/0x409/serialnumber
+
+	mkdir -p demo/configs/c.1/strings/0x409
+
+	echo "compsite-config" > demo/configs/c.1/strings/0x409/configuration
+	echo 120 > demo/configs/c.1/MaxPower
+
+	# config device
+	#/etc/init.d/usb/printer $1
+	#/etc/init.d/usb/uvc	$1
+	/etc/init.d/usb/adb 	$1
+	#/etc/init.d/usb/acm 	$1
+	#/etc/init.d/usb/mtp	$1
+	#/etc/init.d/usb/mass_storage $1
+	#/etc/init.d/usb/keyboard	$1
+	#/etc/init.d/usb/mouse	$1
+	#/etc/init.d/usb/ncm	$1
+	#/etc/init.d/usb/rndis	$1
+	#/etc/init.d/usb/uac1	$1
+	#/etc/init.d/usb/serial	$1
+
+	# enable UDC.
+	echo 13500000.otg > demo/UDC
+
+
+	#/etc/init.d/usb/uvc poststart
+	#/etc/init.d/usb/mass_storage poststart
+	#/etc/init.d/usb/uac1 poststart
+
+	/etc/init.d/usb/udc_daemon_c &
+
+	;;
+  stop)
+	echo "Stop usb devices ..."
+
+	killall -9 udc_daemon
+
+	cd $CONFIGFS_HOME/usb_gadget/demo
+	echo "" > UDC
+
+	#/etc/init.d/usb/printer $1
+	#/etc/init.d/usb/uvc	$1
+	/etc/init.d/usb/adb 	$1
+	#/etc/init.d/usb/acm 	$1
+	#/etc/init.d/usb/mtp	$1
+	#/etc/init.d/usb/mass_storage $1
+	#/etc/init.d/usb/keyboard	$1
+	#/etc/init.d/usb/mouse	$1
+	#/etc/init.d/usb/ncm	$1
+	#/etc/init.d/usb/rndis	$1
+	#/etc/init.d/usb/uac1	$1
+	#/etc/init.d/usb/serial	$1
+
+	echo "Cleaning up configuration..."
+	rmdir  configs/c.1/strings/0x409
+	rmdir  configs/c.1
+
+	echo "Cleaning English string..."
+	rmdir  strings/0x409
+
+	cd /
+	echo "Removing gadget directory..."
+	rmdir $CONFIGFS_HOME/usb_gadget/demo/
+	sleep 1
+	umount $CONFIGFS_HOME
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

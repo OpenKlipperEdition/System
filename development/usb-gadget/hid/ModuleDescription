@@ -1,0 +1,119 @@
+Linux USB HID gadget driver
+
+Introduction
+
+	The HID Gadget driver provides emulation of USB Human Interface
+	Devices (HID). The basic HID handling is done in the kernel,
+	and HID reports can be sent/received through I/O on the
+	/dev/hidgX character devices.
+
+	For more details about HID, see the developer page on
+	http://www.usb.org/developers/hidpage/
+
+	Configuration
+
+	g_hid is a platform driver, so to use it you need to add
+	struct platform_device(s) to your platform code defining the
+	HID function descriptors you want to use - E.G. something
+	like:
+
+#include <linux/platform_device.h>
+#include <linux/usb/g_hid.h>
+
+/* hid descriptor for a keyboard */
+static struct hidg_func_descriptor my_hid_data = {
+		.subclass		= 0, /* No subclass */
+		.protocol		= 1, /* Keyboard */
+		.report_length		= 8,
+		.report_desc_length	= 63,
+		.report_desc		= {
+			0x05, 0x01,	/* USAGE_PAGE (Generic Desktop)	          */
+			0x09, 0x06,	/* USAGE (Keyboard)                       */
+			0xa1, 0x01,	/* COLLECTION (Application)               */
+			0x05, 0x07,	/*   USAGE_PAGE (Keyboard)                */
+			0x19, 0xe0,	/*   USAGE_MINIMUM (Keyboard LeftControl) */
+			0x29, 0xe7,	/*   USAGE_MAXIMUM (Keyboard Right GUI)   */
+			0x15, 0x00,	/*   LOGICAL_MINIMUM (0)                  */
+			0x25, 0x01,	/*   LOGICAL_MAXIMUM (1)                  */
+			0x75, 0x01,	/*   REPORT_SIZE (1)                      */
+			0x95, 0x08,	/*   REPORT_COUNT (8)                     */
+			0x81, 0x02,	/*   INPUT (Data,Var,Abs)                 */
+			0x95, 0x01,	/*   REPORT_COUNT (1)                     */
+			0x75, 0x08,	/*   REPORT_SIZE (8)                      */
+			0x81, 0x03,	/*   INPUT (Cnst,Var,Abs)                 */
+			0x95, 0x05,	/*   REPORT_COUNT (5)                     */
+			0x75, 0x01,	/*   REPORT_SIZE (1)                      */
+			0x05, 0x08,	/*   USAGE_PAGE (LEDs)                    */
+			0x19, 0x01,	/*   USAGE_MINIMUM (Num Lock)             */
+			0x29, 0x05,	/*   USAGE_MAXIMUM (Kana)		  */
+			0x91, 0x02,	/*   OUTPUT (Data,Var,Abs)		  */
+			0x95, 0x01,	/*   REPORT_COUNT (1)			  */
+			0x75, 0x03,	/*   REPORT_SIZE (3)			  */
+			0x91, 0x03,	/*   OUTPUT (Cnst,Var,Abs)		  */
+			0x95, 0x06,	/*   REPORT_COUNT (6)			  */
+			0x75, 0x08,	/*   REPORT_SIZE (8)			  */
+			0x15, 0x00,	/*   LOGICAL_MINIMUM (0)		  */
+			0x25, 0x65,	/*   LOGICAL_MAXIMUM (101)		  */
+			0x05, 0x07,	/*   USAGE_PAGE (Keyboard)		  */
+			0x19, 0x00,	/*   USAGE_MINIMUM (Reserved)		  */
+			0x29, 0x65,	/*   USAGE_MAXIMUM (Keyboard Application) */
+			0x81, 0x00,	/*   INPUT (Data,Ary,Abs)		  */
+			0xc0		/* END_COLLECTION			  */
+		}
+};
+
+static struct platform_device my_hid = {
+	.name			= "hidg",
+	.id			= 0,
+	.num_resources		= 0,
+	.resource		= 0,
+	.dev.platform_data	= &my_hid_data,
+};
+
+	You can add as many HID functions as you want, only limited by
+	the amount of interrupt endpoints your gadget driver supports.
+
+Configuration with configfs
+
+	Instead of adding fake platform devices and drivers in order to pass
+	some data to the kernel, if HID is a part of a gadget composed with
+	configfs the hidg_func_descriptor.report_desc is passed to the kernel
+	by writing the appropriate stream of bytes to a configfs attribute.
+
+Send and receive HID reports
+
+	HID reports can be sent/received using read/write on the
+	/dev/hidgX character devices. See below for an example program
+	to do this.
+
+	hid_gadget_test is a small interactive program to test the HID
+	gadget driver. To use, point it at a hidg device and set the
+	device type (keyboard / mouse / joystick) - E.G.:
+
+		# hid_gadget_test /dev/hidg0 keyboard
+
+	You are now in the prompt of hid_gadget_test. You can type any
+	combination of options and values. Available options and
+	values are listed at program start. In keyboard mode you can
+	send up to six values.
+
+	For example type: g i s t r --left-shift
+
+	Hit return and the corresponding report will be sent by the
+	HID gadget.
+
+	Another interesting example is the caps lock test. Type
+	--caps-lock and hit return. A report is then sent by the
+	gadget and you should receive the host answer, corresponding
+	to the caps lock LED status.
+
+		--caps-lock
+		recv report:2
+
+	With this command:
+
+		# hid_gadget_test /dev/hidg1 mouse
+
+	You can test the mouse emulation. Values are two signed numbers.
+
+

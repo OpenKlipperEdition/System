@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Start serial....
+#
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb acm serial devices ..."
+
+	mkdir -p demo/functions/acm.0
+	if [ $? != 0 ]; then
+		echo "unable to create function serial, check kernel config!"
+		exit 1
+	fi
+	ln -s demo/functions/acm.0 demo/configs/c.1/
+
+	;;
+  stop)
+	echo "Stop usb serial devices ..."
+	if [ ! -d demo/configs/c.1/acm.0 ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/acm.0
+	rmdir demo/functions/acm.0
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+exit $?

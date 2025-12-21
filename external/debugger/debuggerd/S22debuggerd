@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Start debuggerd....
+#
+case "$1" in
+  start)
+	  echo "Starting debuggerd ..."
+	  /usr/bin/debuggerd &
+	  if [ -f /usr/lib/libdebugger.so ];then
+		  LD_PRELOAD=/usr/lib/libdebugger.so
+		  export LD_PRELOAD
+	  fi
+	  ;;
+  stop)
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

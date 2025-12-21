@@ -1,0 +1,25 @@
+#!/bin/sh
+
+case "$1" in
+  start)
+	rm -rf /usr/data/ota_res
+	cp -r /etc/ota_res/ /usr/data/
+	cp -r /firmware/ /usr/data/
+	cp /usr/lib/libsysutils.so /usr/data/
+	cp /usr/lib/libcutils.so /usr/data/
+	cp /usr/lib/libstdc++.so.6.0.24 /usr/data/
+	cp /lib/libm.so.6 /usr/data/
+	cp /lib/libc.so.6 /usr/data/
+	sync
+	;;
+  stop)
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

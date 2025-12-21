@@ -1,0 +1,8 @@
+LOCAL_PATH := $(my-dir)
+
+include $(CLEAR_VARS)
+CMAKE_PATH = $(LOCAL_PATH)
+LOCAL_MODULE := install_wifi_ap_mode
+LOCAL_MODULE_TAGS := optional
+CMAKE_CONF_OPTS := -DDESTDIR=$(TOP_DIR)/$(TARGET_FS_BUILD)
+include $(BUILD_CMAKE_DEVICE)

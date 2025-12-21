@@ -1,0 +1,15 @@
+#!/bin/sh
+
+rfkill unblock wifi
+ifconfig wlan0 up
+
+setup -p 0x7 -d -k 0123456789abcdef
+
+if [ $? -ne 0 ]; then
+	echo ">>>airkiss fail<<<"
+else
+	wpa_supplicant -i wlan0 -c ${env_wifi_wpa_supplicant_conf} &
+	udhcpc -i wlan0 &
+fi
+
+

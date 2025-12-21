@@ -1,0 +1,25 @@
+/* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved. */
+#pragma once
+
+#define AL_ENC_REG_UID 0x8000
+#define AL_ENC_REG_HW_ID 0x8004
+#define AL_ENC_REG_DATE 0x8008
+#define AL_ENC_REG_VERSION 0x800C
+
+#define AL_ENC_COMMON_OFFSET 0x8000u
+#define AL_ENC_COMMON_REG_SIZE 0x200
+#define AL_ENC_CORE_REG_SIZE 0x200
+#define AL_ENC_TOT_NUM_REGS 768
+
+/* in V120 and Gen1, both enc1 and enc2 banks starts at the beginning of the core */
+#define AL_ENC1_CMD_BANK_OFFSET 0
+#define AL_ENC2_CMD_BANK_OFFSET 0
+#define AL_ENC1_STATUS_BANK_OFFSET 0
+#define AL_ENC2_STATUS_BANK_OFFSET 0
+
+#define AL_ENCJPEG_CMD_BANK_OFFSET 0
+#define AL_ENCJPEG_STATUS_BANK_OFFSET 0
+#define AL_JPEG_FIRST_CORE AL_ENC_NUM_CORES
+
+#define AL_ENC_BASE_JPEG (AL_ENC_COMMON_OFFSET + AL_ENCJPEG_CMD_BANK_OFFSET)
+

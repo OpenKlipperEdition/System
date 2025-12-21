@@ -1,0 +1,245 @@
+/* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved. */
+/**************************************************************************//*!
+   \addtogroup Allocator
+
+   The AL_TAllocator structure defines an interface object used to allocate and
+   free any memory buffer provided to the IP.
+   The following API is an abstraction layer allowing various implementations
+   of the allocator interface.
+   The user can provide his own implementation if the provided ones don't fit his
+   constraints.
+
+   @{
+   \file
+ *****************************************************************************/
+#pragma once
+
+#include <stddef.h>
+#include "lib_rtos/types.h"
+
+/**************************************************************************//*!
+   \brief Generic memory allocator interface object
+******************************************************************************/
+typedef struct AL_t_Allocator AL_TAllocator;
+
+/*! \cond ********************************************************************/
+typedef struct
+{
+  bool (* pfnDestroy)(AL_TAllocator* pAllocator);
+  AL_HANDLE (* pfnAlloc)(AL_TAllocator* pAllocator, size_t zSize);
+  bool (* pfnFree)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
+  AL_VADDR (* pfnGetVirtualAddr)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
+  AL_PADDR (* pfnGetPhysicalAddr)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
+  AL_HANDLE (* pfnAllocNamed)(AL_TAllocator* pAllocator, size_t zSize, char const* name);
+  AL_HANDLE (* pfnAllocNamedEmpty)(AL_TAllocator* pAllocator, size_t zSize, char const* name);
+  bool (* pfnFreeEmpty)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
+  bool (* pfnSetExtraMemory)(AL_TAllocator* pAllocator, AL_HANDLE hBuf, AL_VADDR vaddr, AL_PADDR paddr, size_t size);
+}AL_AllocatorVtable;
+
+struct AL_t_Allocator
+{
+  AL_AllocatorVtable const* vtable;
+};
+/*! \endcond *****************************************************************/
+
+/**************************************************************************//*!
+   \brief Destroy the Allocator interface object itself
+   \param[in] pAllocator the Allocator interface object to be destroyed
+   \return true on success false otherwise
+******************************************************************************/
+static AL_INLINE bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
+{
+  if(pAllocator->vtable->pfnDestroy)
+    return pAllocator->vtable->pfnDestroy(pAllocator);
+  return true;
+}
+
+/**************************************************************************//*!
+   \brief Allocates a new memory buffer
+   \param[in] pAllocator a Allocator interface object
+   \param[in] zSize number of byte of the requested memory buffer
+   \return A valid handle to the allocated buffer or NULL if the allocation fails.
+   The handle value depends on the Allocator implementation and shall be treat as
+   a black box.
+******************************************************************************/
+static AL_INLINE
+AL_HANDLE AL_Allocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
+{
+	if(pAllocator->vtable->pfnAlloc) {
+		return pAllocator->vtable->pfnAlloc(pAllocator, zSize);
+	}
+	return NULL;
+}
+
+/**************************************************************************//*!
+   \brief Allocates a new memory buffer, and associates a name for tracking purpose
+   \param[in] pAllocator a Allocator interface object
+   \param[in] zSize number of byte of the requested buffer
+   \param[in] sName name associated with the buffer. the parameter can be use by
+   the allocator object to track the buffer.
+   \return A valid handle to the allocated buffer or NULL if the allocation fails.
+   The handle value depends on the Allocator implementation and shall be treat as
+   a black box.
+******************************************************************************/
+static AL_INLINE
+AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char const* sName)
+{
+  (void)sName;
+
+  if(!pAllocator->vtable->pfnAllocNamed) {
+    return pAllocator->vtable->pfnAlloc(pAllocator, zSize);
+  }
+
+  return pAllocator->vtable->pfnAllocNamed(pAllocator, zSize, sName);
+}
+
+/**************************************************************************//*!
+   /brief Frees an existing memory buffer, if the HANDLE is NULL, this does nothing
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffer
+   \param[in] hBuf Handle to the memory buffer to be freed.
+   \return true on success, false otherwise
+******************************************************************************/
+static AL_INLINE
+bool AL_Allocator_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  return pAllocator->vtable->pfnFree(pAllocator, hBuf);
+}
+
+/**************************************************************************//*!
+   \brief Retrieves the buffer address in the user address space
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffer
+   \param[in] hBuf Handle to the memory buffer.
+   \return a pointer to the allocated memory in user space
+******************************************************************************/
+static AL_INLINE
+AL_VADDR AL_Allocator_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  return pAllocator->vtable->pfnGetVirtualAddr(pAllocator, hBuf);
+}
+
+/**************************************************************************//*!
+   \brief Retrieves the buffer address in the IP address space
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffer
+   \param[in] hBuf Handle to the memory buffer.
+   \return a pointer to the allocated memory in the IP address space
+******************************************************************************/
+static AL_INLINE
+AL_PADDR AL_Allocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  return pAllocator->vtable->pfnGetPhysicalAddr(pAllocator, hBuf);
+}
+
+/**************************************************************************//*!
+   \brief Allocates a new empty handle without memory buffer, and associates a name
+	 for tracking purpose
+   \param[in] pAllocator a Allocator interface object
+   \param[in] zSize number of byte of the requested buffer
+   \param[in] sName name associated with the buffer. the parameter can be use by
+   the allocator object to track the buffer.
+   \return A valid empty handle without allocated buffer or NULL if the allocation fails.
+   The handle value depends on the Allocator implementation and shall be treat as
+   a black box.
+******************************************************************************/
+static AL_INLINE
+AL_HANDLE AL_Allocator_AllocNamedEmpty(AL_TAllocator* pAllocator, size_t zSize, char const* sName)
+{
+  return pAllocator->vtable->pfnAllocNamedEmpty(pAllocator, zSize, sName);
+}
+
+/**************************************************************************//*!
+   /brief Frees an existing empty handle, if the HANDLE is NULL, this does nothing
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffer
+   \param[in] hBuf Empty handle to be freed.
+   \return true on success, false otherwise
+******************************************************************************/
+static AL_INLINE
+bool AL_Allocator_FreeEmpty(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  return pAllocator->vtable->pfnFreeEmpty(pAllocator, hBuf);
+}
+
+/**************************************************************************//*!
+   /brief Set the empty handle with an existing memory buffer, if the HANDLE is NULL,
+	 this does nothing
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffer
+   \param[in] hBuf Empty handle to be set vaddr, paddr.
+   \param[vaddr] virtual address to be set to the empty handle.
+   \param[paddr] physical address to be set to the empty handle.
+   \param[size] size to be judge in empty handle to compare with requested size.
+   \return true on success, false otherwise
+******************************************************************************/
+static AL_INLINE
+bool AL_Allocator_SetExtraMemory(AL_TAllocator* pAllocator, AL_HANDLE hBuf,
+		AL_VADDR vaddr, AL_PADDR paddr, size_t size)
+{
+  return pAllocator->vtable->pfnSetExtraMemory(pAllocator, hBuf, vaddr, paddr, size);
+}
+
+/**************************************************************************//*!
+   \brief Get default implementation of the allocator
+   This allocator doesn't support dma (GetPhysicalAddr is not supported)
+   and uses Rtos_Free and Rtos_Malloc to allocate and free.
+******************************************************************************/
+AL_TAllocator* AL_GetDefaultAllocator(void);
+
+/**************************************************************************//*!
+   \brief Get wrapper implementation of the allocator
+   This allocator doesn't support dma (GetPhysicalAddr is not supported)
+   Allocating with this allocator will use Rtos_Malloc and will set
+   the destructor to Rtos_Free, acting like the default allocator.
+   The allocation will have a little overhead as there is the additional destructor
+   function pointer to store.
+******************************************************************************/
+AL_TAllocator* AL_GetWrapperAllocator(void);
+
+typedef void (* PFN_WrapDestructor)(void* pUserData, uint8_t* pData);
+/**************************************************************************//*!
+   \brief Create a handle for an already allocated data.
+   This permits to use the allocator function on data allocated using other means.
+   Use the AL_GetWrapperAllocator to manipulate the created handle.
+   \param[in] pData Already allocated data
+   \param[in] destructor function to call when AL_Allocator_Free is called.
+   \param[in] pUserData user data which will be given to the destructor function.
+   \return handle to the allocated data.
+******************************************************************************/
+AL_HANDLE AL_WrapperAllocator_WrapData(uint8_t* pData, PFN_WrapDestructor destructor, void* pUserData);
+/*****************************************************************************/
+
+/* pMemoryAllocator is used to allocate the context of the allocator / internal metadata,
+ * pRealAllocator will be used to allocate the memory of the buffer
+ * uAlign is the alignment of the buffer in bytes.
+ */
+AL_TAllocator* AL_AlignedAllocator_Create(AL_TAllocator* pMemoryAllocator, AL_TAllocator* pRealAllocator, uint32_t uAlign);
+
+typedef struct {
+	int poolId;
+	AL_TAllocator vTable;
+} Jz_Allocator_t;
+
+#define container_of(ptr, type, member) ({			\
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
+#define JZ_DEFAULT_POOLID (-1)
+#define JZ_POOL_IDMAX (32 - 1)
+
+/**
+ * @brief AllocatorPoolGetPoolId: 通过allocator获取poolId，当allocatot不属于pool时候，返回默认的id -1
+ *
+ * @param[in] p
+ *
+ * @retval:  获取的Id
+ * @retval:
+ *
+ * @attention
+ */
+int AllocatorPoolGetPoolId(AL_TAllocator *p);
+
+
+/*@}*/
+

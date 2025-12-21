@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Start mount userdata...
+#
+
+case "$1" in
+  start)
+	mount_mmc.sh 8 /usr/data/
+	;;
+  stop)
+	umount /usr/data/
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

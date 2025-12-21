@@ -1,0 +1,14 @@
+cscope.*
+tags
+
+otapackage/__init__.pyc
+otapackage/config.pyc
+otapackage/lib/__init__.pyc
+otapackage/lib/base.pyc
+otapackage/lib/dev.pyc
+otapackage/lib/file.pyc
+otapackage/lib/image.pyc
+otapackage/lib/ini.pyc
+otapackage/lib/log.pyc
+otapackage/lib/pkg.pyc
+otapackage/mkotapackage.pyc

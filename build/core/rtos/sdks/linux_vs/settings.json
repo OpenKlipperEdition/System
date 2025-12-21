@@ -1,0 +1,7 @@
+{
+
+    "cmake.cmakePath": "/usr/bin/cmake",
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.buildDirectory": "${workspaceFolder}/build/${buildKit}/${buildType}", // 指定构建目录
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+}

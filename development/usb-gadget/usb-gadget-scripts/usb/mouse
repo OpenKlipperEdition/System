@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# start hid_mouse
+#
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb hid mouse devices ..."
+
+	mkdir -p demo/functions/hid.mouse
+	if [ $? != 0 ]; then
+		echo "unable to create function hid mouse. check kernel config!"
+		exit 1
+	fi
+
+	echo 0 > demo/functions/hid.mouse/subclass
+	echo 2 > demo/functions/hid.mouse/protocol
+	echo 4 > demo/functions/hid.mouse/report_length
+
+	echo -ne \\x5\\x1\\x9\\x2\\xa1\\x1\\x9\\x1\\xa1\\x00\\x5\\x9\\x19\\x1\\x29\\x3\\x15\\x00\\x25\\x1\\x75\\x1\\x95\\x3\\x81\\x2\\x75\\x5\\x95\\x1\\x81\\x1\\x5\\x1\\x9\\x30\\x9\\x31\\x9\\x38\\x15\\x81\\x25\\x7f\\x75\\x8\\x95\\x3\\x81\\x6\\xc0\\xc0 > demo/functions/hid.mouse/report_desc
+	ln -s demo/functions/hid.mouse demo/configs/c.1
+
+	;;
+  stop)
+	echo "Stop usb hid mouse ..."
+	if [ ! -d demo/configs/c.1/hid.mouse ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/hid.mouse
+	rmdir demo/functions/hid.mouse
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

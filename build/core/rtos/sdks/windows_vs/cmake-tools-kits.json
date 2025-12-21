@@ -1,0 +1,17 @@
+[
+    {
+        "name": "sdk-mips-windows-gnu",
+        "compilers": {
+          "C": "${workspaceFolder}/prebuilts/toolchains/mips-gcc-glibc/bin/$(DEVICE_COMPILER_PREFIX)-gcc",
+          "CXX": "${workspaceFolder}/prebuilts/toolchains/mips-gcc-glibc/bin/$(DEVICE_COMPILER_PREFIX)-g++"
+        },
+        "toolchainFile": "${workspaceFolder}/cmake/mips.cmake"
+       "preferredGenerator":{
+                "name":"MinGw Makefiles",
+                "platform":"mips"
+           },
+        "enviromentVariables":{
+                "PATH":"D:\\msys64\\mingw64\\bin"
+            }
+    }
+]

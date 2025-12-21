@@ -1,0 +1,9 @@
+LOCAL_PATH := $(my-dir)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := install_bt_bcm43430a1_AzureWave_firmware
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH := $(TARGET_FS_BUILD)/lib/firmware/bluetooth
+BCM43430A1_AZUREWAVE_FILES := $(notdir $(wildcard $(LOCAL_PATH)/BCM43430A1*))
+LOCAL_COPY_FILES := $(BCM43430A1_AZUREWAVE_FILES)
+include $(BUILD_MULTI_PREBUILT)

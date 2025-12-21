@@ -1,0 +1,30 @@
+--------------------------------------------------
+
+	Ingenic Camera Module Utils
+
+--------------------------------------------------
+
+1. Feature
+ i> save as picture formats:
+	BMP - Windows Bitmap
+	JPEG - Joint Photographic Experts Group
+	Raw - CIM RxFiFo Data
+ ii> V4L2-compatible codes
+ iii> FOURCC-compatible pixel formats
+ iv> preview on LCD
+ v> display raw & picture file on LCD
+
+2. Other
+Change log:
+
+* Thu Jul 23 11:58:21 2020
+  porting from cimutils branch ingenic-master-x2000
+  git log:
+commit b38483b9be99672fa7161e576a9e8eeb7b05963d
+Author: qipengzhen <aric.pzqi@ingenic.com>
+Date:   Thu May 21 12:16:51 2020 +0800
+
+        [modify] remove mmxu flags.
+    
+    Change-Id: I78d243fa3b452fac7f0e8bba045084d5fa37d179
+

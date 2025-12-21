@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <head>
+    <title>MJPG-test</title>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+    <link rel="stylesheet" href="style.css" type="text/css" />
+    <script type="text/javascript" src="jquery.js"></script>    
+    <script type="text/javascript" src="jquery.rotate.js"></script>
+    <!--[if IE 6]>
+    <link rel="stylesheet" href="fix.css" type="text/css" />
+    <![endif]-->
+  </head>
+
+  <body>
+    <div id="sidebar">
+      <h1>MJPG-Streamer Demo Pages</h1>
+      <h2>a resource-friendly streaming application</h2>
+
+      <div id="menu">
+        <a href="index.html">Home</a>
+        <a href="static.html">Static</a>
+	<a class="active" href="capture.html">capture</a> 
+        <a  href="stream.html">Stream</a> 
+        <a href="java.html">Java</a> 
+        <a href="javascript.html">Javascript</a>
+        <a href="videolan.html">VideoLAN</a>
+        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
+      </div>
+
+      <h3>Version info:</h3>
+      <p>v0.1 (Okt 22, 2007)</p>
+    </div>
+    <script>
+      function changeImage()
+      {
+      element=document.getElementById('streamimage')
+      if (element.src.match("stream"))
+      {
+      element.src="./?action=capture";
+      }
+      else
+      {
+        element.src="./?action=stream";
+      }
+      }
+
+      var xhr = new XMLHttpRequest();
+      function submitform()
+      {
+      <!-- alert("Sending Json"); -->
+      xhr.open("POST", "/getdepth", true);
+      xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+      var xcoorder = document.getElementById("xcoorder").value;
+      var ycoorder = document.getElementById("ycoorder").value;
+
+      var value = {"xcoorder":xcoorder, "ycoorder":ycoorder};
+      var tmp = JSON.stringify(value);
+      alert(tmp);
+
+      xhr.send(JSON.stringify(value));
+      <!-- xhr.addEventListener("readystatechange", processRequest, false); -->
+      xhr.onreadystatechange = processRequest;
+      }
+
+      function processRequest(e) {
+      if (xhr.readyState == 4 && xhr.status == 200)
+      {
+      <!-- alert(xhr.responseText);       -->
+      <!-- var response = JSON.parse(xhr.responseText); -->
+      var obj = JSON.parse(xhr.responseText);
+      var html = "<p> x = " + obj.x + "</p>" + "<p> y = " + obj.y + "</p>";
+
+      document.getElementById("out").innerHTML=html
+      }
+      }
+    </script>
+
+    <div id="content">
+    <p id="streamwrap" class="xform-p">
+      <img class="xform" id="streamimage" onclick="changeImage()" src="./?action=capture" />
+    </p>
+
+
+    <!-- <form action="/getdepth" method="post" enctype="application/json" name="cooderform"> -->
+
+    <form action="/getdepth" method="post" name="cooderform" enctype="application/json">
+      <p>
+	<label for="x">
+	  X: <input id="xcoorder" name="xcoorder" value="0"/>
+	</label>
+      </p>
+      <p>
+	<label for="y">
+	  y: <input id="ycoorder" name="ycoorder" value="0"/>
+	</label>
+      </p>
+      <button type="button" onclick="submitform()"> submit </button>
+      <!-- <button type="submit"> submit </button> -->
+    </form>
+    <br>
+    <div id="out">
+
+
+
+  </body>
+</html>

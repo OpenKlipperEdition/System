@@ -1,0 +1,19 @@
+#!/bin/sh
+
+original=$(cat /sys/power/wakeup_count)
+
+while [ true ];do
+
+	change=$(cat /sys/power/wakeup_count)
+	if [ $change -gt $original ]
+	then
+		original=$change
+		killall -9 umtprd
+		sleep 0.5
+		umtprd &
+	fi
+done
+
+
+
+

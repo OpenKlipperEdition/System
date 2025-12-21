@@ -1,0 +1,13 @@
+WATCHDOG_TEST_SRCS=$(WATCHDOG_MODULE_SRCS) ./watchdog_test.c
+WATCHDOG_TEST_OBJS=$(patsubst %.c,%.o,$(filter %.c,$(WATCHDOG_TEST_SRCS)))
+WATCHDOG_TEST_TARGET=watchdog_test
+OBJS+=$(WATCHDOG_TEST_OBJS)
+TARGETS+=$(WATCHDOG_TEST_TARGET)
+
+
+include ../Makefile
+
+
+$(WATCHDOG_TEST_TARGET):$(WATCHDOG_TEST_OBJS)
+	$(CC) $(LIBS) $^ -o $@
+

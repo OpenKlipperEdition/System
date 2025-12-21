@@ -1,0 +1,89 @@
+patch -p1 < third_party/ffplay.patch
+
+./configure \
+		--target-os=linux			\
+		--arch=mips				\
+		--enable-cross-compile			\
+		--cross-prefix=mips-linux-gnu-		\
+		--ranlib=mips-linux-gnu-ranlib		\
+		--pkg-config=pkg-config \
+		--disable-bsfs \
+		--disable-mipsdsp			\
+		--disable-mipsdspr2			\
+		--disable-msa \
+		--disable-runtime-cpudetect \
+		--disable-avfilter \
+		--disable-filters \
+		--disable-encoders \
+		--disable-hwaccels \
+		--disable-dwt \
+		--disable-swscale \
+		--disable-w32threads     \
+		--disable-os2threads     \
+		--disable-securetransport \
+		--disable-muxers \
+		--disable-demuxers \
+		--enable-demuxer=aac \
+		--enable-demuxer=wav \
+		--enable-demuxer=mp3 \
+		--enable-demuxer=pcm_s8 \
+		--enable-demuxer=sdp \
+		--enable-demuxer=h264 \
+		--enable-demuxer=mjpeg \
+		--disable-indevs \
+		--disable-outdevs \
+		--enable-outdev=alsa \
+		--disable-decoders \
+		--enable-decoder=h264_v4l2m2m \
+		--enable-decoder=aac \
+		--enable-decoder=mp3 \
+		--disable-protocols \
+		--enable-protocol=rtmp \
+		--enable-protocol=file \
+		--enable-small \
+		--disable-postproc \
+		--disable-error-resilience \
+		--disable-faan \
+		--disable-lsp \
+		--disable-ffmpeg \
+		--disable-ffprobe \
+		--disable-doc \
+		--enable-v4l2-m2m \
+		--enable-swscale \
+		--extra-cflags='-fPIC -mfp64' \
+		--enable-decoder=pcm_alaw \
+		--enable-decoder=pcm_bluray \
+		--enable-decoder=pcm_dvd \
+		--enable-decoder=pcm_f16le \
+		--enable-decoder=pcm_f24le \
+		--enable-decoder=pcm_f32be \
+		--enable-decoder=pcm_f32le \
+		--enable-decoder=pcm_f64le \
+		--enable-decoder=pcm_lxf \
+		--enable-decoder=pcm_mulaw \
+		--enable-decoder=pcm_s16be \
+		--enable-decoder=pcm_s16be_planar \
+		--enable-decoder=pcm_s16le \
+		--enable-decoder=pcm_s24be \
+		--enable-decoder=pcm_s24daud \
+		--enable-decoder=pcm_s24le \
+		--enable-decoder=pcm_s24le_planar \
+		--enable-decoder=pcm_s32be \
+		--enable-decoder=pcm_s32le \
+		--enable-decoder=pcm_s32le_planar \
+		--enable-decoder=pcm_s64be \
+		--enable-decoder=pcm_s64le \
+		--enable-decoder=pcm_s8 \
+		--enable-decoder=pcm_s8_planar \
+		--enable-decoder=pcm_sga \
+		--enable-decoder=pcm_u16be \
+		--enable-decoder=pcm_u16le \
+		--enable-decoder=pcm_u24be \
+		--enable-decoder=pcm_u24le \
+		--enable-decoder=pcm_u32be \
+		--enable-decoder=pcm_u32le \
+		--enable-decoder=pcm_u8 \
+		--enable-decoder=pcm_vidc
+
+sed -i 's/!CONFIG_FFPLAY/CONFIG_FFPLAY/g' ffbuild/config.mak
+make -j20

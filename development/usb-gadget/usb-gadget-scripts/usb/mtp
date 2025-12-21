@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# start mtp
+#
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+        echo "Starting usb mtp devices ..."
+
+        mkdir -p demo/functions/ffs.mtp
+        if [ $? != 0 ]; then
+                echo "unable to create function mtp. check kernel config!"
+                exit 1
+        fi
+
+        ln -s demo/functions/ffs.mtp demo/configs/c.1
+        mkdir -p /dev/ffs-mtp/
+        mount -t functionfs mtp /dev/ffs-mtp
+
+        umtprd &
+
+	if [ -e "/sys/power/wakeup_count" ]; then
+		/etc/init.d/usb/mtp_daemon &
+	fi
+
+
+        ;;
+  stop)
+        echo "Stop usb mtp devices ..."
+        if [ ! -d demo/configs/c.1/ffs.mtp ];then
+                exit 0
+        fi
+
+        killall umtprd
+        rm -r demo/configs/c.1/ffs.mtp
+        rmdir demo/functions/ffs.mtp
+        umount /dev/ffs-mtp/
+
+        ;;
+  restart|reload)
+        ;;
+  *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+esac
+
+exit $?

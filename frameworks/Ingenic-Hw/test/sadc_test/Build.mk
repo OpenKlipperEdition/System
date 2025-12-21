@@ -1,0 +1,28 @@
+LOCAL_PATH := $(my-dir)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := sadc_test
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH:=$(TARGET_FS_BUILD)/$(TARGET_TESTSUIT_DIR)/hw-example
+LOCAL_SRC_FILES := sadc_test.c
+
+#判断芯片平台
+ifeq ($(TARGET_DEVICE),x2600Ehalley)
+LOCAL_CFLAGS += -DX2600E_HALLEY
+else ifeq ($(TARGET_DEVICE),X2600halley)
+LOCAL_CFLAGS += -DX2600_HALLEY
+else ifeq ($(TARGET_DEVICE),x2670halley)
+LOCAL_CFLAGS += -DX2670_HALLEY
+else ifeq ($(TARGET_DEVICE),X2670Mhare)
+LOCAL_CFLAGS += -DX2670M_HARE
+else ifeq ($(TARGET_DEVICE),hippo)
+LOCAL_CFLAGS += -DX2500_HIPPO
+else ifeq ($(TARGET_DEVICE),halley5)
+LOCAL_CFLAGS += -DX2000_HALLEY5
+else ifeq ($(TARGET_DEVICE),halley6)
+LOCAL_CFLAGS += -DX1600_HALLEY6
+endif
+
+LOCAL_LDLIBS := -lc -lm -ldl  -lingenichw
+include $(BUILD_EXECUTABLE)
+

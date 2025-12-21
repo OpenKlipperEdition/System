@@ -1,0 +1,28 @@
+#!/bin/sh
+
+#
+# get /dev/videoX by name
+# eg:
+#	 get_video_by_name 13500000.otg
+# get:   video7
+#
+
+
+
+if [ $# != 1 ]; then
+exit 0
+fi
+
+by_name=$1
+
+videonames=`ls /sys/class/video4linux/video*/name`
+
+rm -f /tmp/v4l2-video-nodes
+
+for name in $videonames
+do
+echo `cat $name`@`dirname $name | xargs basename` >> /tmp/v4l2-video-nodes
+done
+
+
+cat /tmp/v4l2-video-nodes | grep $by_name | awk -F "@" '{print $2}'

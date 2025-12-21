@@ -1,0 +1,67 @@
+2023-12-14 version (1.0.0)
+-------------------------------------
+	-新增功能:
+		1、新增解码显示测试用例
+		2、新增X26xx系列芯片支持
+	-修复BUG:
+		1、修复已知的display模块API异常的问题
+	-其他修改:
+测试环境：
+	kernel4.4-commit: f0c3f829cc91caadc2e04ba67c5a40218d31b0dc
+	kernel5.10-commit: eea3d168057a774172a1f9b793a66204c6606781
+
+2023-12-20: version(1.0.1)
+-------------------------------------
+	-新增功能：
+        1、Camera模块创建Internal buffer时支持返回video buffer的物理地址
+        2、X2500 H264/H265编码器支持运行中修改QP bound和 bitrate
+        3、IMPP部分使用示例支持通过命令行参数设置格式
+		4、新增X26xx系列芯片支持对灰度图的JPEG编码
+        4、X26xx系列芯片Jpeg编解码支持格式检查
+        5、新增sample_lcd_pic_test.c和simple_lcd_pic_test.c使用示例
+    - 修复BUG：
+        1、修复DPU/Display模块传入部分格式图片到屏上显示与实际颜色不符的问题（测试图像以FFMPEG生成为准）
+        2、修复X2000 Rotater模块部分格式图片转换后与ffmpeg颜色不一致的问题
+        3、修复Rotater/Dispaly/DPU/Codec模块支持的YUV422格式，改为YUYV，便于客户理解区分
+    - 其他修改：
+    - 其他说明：
+        --修改QP和bitrate 伪代码说明
+            int bitrate[2];
+            int qp[2];
+            ctrol.cmd = ENCODER_SET_BITRATE;
+            bitrate[0] = 3000;  //target bitrate
+            bitrate[1] = 4000;  //max bitrate
+            ctrol.priv = &bitrate[0];
+            IHal_Codec_Control(handle,&ctrol);
+            ctrol.cmd = ENCODER_SET_QP_BOUNDS;
+
+            qp[0] = 20; //min qp
+            qp[1] = 30; //max qp
+            ctrol.priv = &qp[0];
+            IHal_Codec_Control(handle,&ctrol);
+    -测试Kernel环境:
+        · 开发板：halley5_v30 nand版本、hippo_v12 EMMC版本、x2670_halley_v10 nand版本
+        · kernel4.4-commit: 7400260ff8fb9767ae7f52c0e1f3a3403a91923a
+        · kernel5.10-commit: 428e993a0bd335b1697c45b77d1780e1208c49ce
+
+2023-12-26: version(1.0.2)
+-------------------------------------
+	- 新增功能：
+    - 修复BUG：
+		1、修复部分X26xx系列芯片不编译部分示例的问题（不再使用具体的X26xx芯片型号作区分，统一用x26做区分）
+    - 其他修改：
+		1、删除IMPP中提供的asound库，统一使用SDK中的
+    - 其他说明：
+    - 测试Kernel环境:
+
+2024-01-15: version(1.0.3)
+-------------------------------------
+	- 新增功能：
+		1、Camera模块添加MJPEG格式
+		2、新增TILE420转换为NV12格式的接口以及使用示例
+	- 修复BUG：
+	- 其他修改：
+	- 其他说明：
+	- 测试Kernel环境:
+		· 开发板：halley5_v30 nand版本
+		· kernel-4.4：commit 3541b6db9e19ea8da41a46b0ad0f683a6a3b024a

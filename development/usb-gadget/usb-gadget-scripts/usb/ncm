@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Start ncm....
+#
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb ncm devices ..."
+
+	mkdir -p demo/functions/ncm.0
+	if [ $? != 0 ]; then
+		echo "unable to create function ncm, check kernel config!"
+		exit 1
+	fi
+	ln -s demo/functions/ncm.0 demo/configs/c.1/
+
+	;;
+  stop)
+	echo "Stop usb ncm devices ..."
+	if [ ! -d demo/configs/c.1/ncm.0 ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/ncm.0
+	rmdir demo/functions/ncm.0
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+exit $?

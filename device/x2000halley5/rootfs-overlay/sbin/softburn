@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# enter SWB software boot, usb boot.
+devmem 0x100000cc 32 0x42575302
+reboot

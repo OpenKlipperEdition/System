@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Start mdev....
+#
+
+case "$1" in
+  start)
+	mount_ubifs.sh userdata /usr/data/
+	ln -s /usr/data/ethconnect /usr/sbin/ethconnect
+	ln -s /usr/data/event_manager /usr/sbin/event_manager
+	ln -s /usr/data/network_manager /usr/sbin/network_manager
+	ln -s /usr/data/startsta.sh /usr/sbin/startsta.sh
+	ln -s /usr/data/startap.sh /usr/sbin/startap.sh
+	ln -s /usr/data/bsa_server_mips /sbin/bsa_server_mips
+	ln -s /usr/data/libevent_manager.so /lib/libevent_manager.so
+	ln -s /usr/data/libbt.so /lib/libbt.so
+	ln -s /usr/data/libbsa.so /lib/libbsa.so
+	ln -s /usr/data/libsysutils.so /lib/libsysutils.so
+	ln -s /usr/data/libcutils.so /lib/libcutils.so
+	ln -s /usr/data/libstdc++.so.6.0.21 /lib/libstdc++.so.6
+	ln -s /usr/data/ota_res/ble_cfg /sbin/ble_cfg
+	ln -s /usr/data/firmware/ /lib/firmware
+	cp /usr/data/boa.conf /etc/boa/
+	cp /usr/data/mime.types /etc/
+	cp -rf /usr/data/cgi-bin /usr/lib/
+	;;
+  stop)
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

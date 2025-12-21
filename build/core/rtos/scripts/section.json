@@ -1,0 +1,22 @@
+{
+	"section1": {
+		"ramaddr": "0x81010000",
+		"ramsize": "0x400000",
+		"stacksize": "0x3000"
+	},
+	"section2": {
+		"ramaddr": "0x81410000",
+		"ramsize": "0x400000",
+		"stacksize": "0x3000"
+	},
+	"section3": {
+		"ramaddr": "0x81810000",
+		"ramsize": "0x290000",
+		"stacksize": "0x3000"
+	},
+	"section4": {
+		"ramaddr": "0x81b00000",
+		"ramsize": "0x290000",
+		"stacksize": "0x3000"
+	}
+}

@@ -1,0 +1,5 @@
+export env_wifi_mac_addr_path="/data/misc/wifi/"
+export env_wifi_enable_when_system_up="y"
+export env_wifi_wpa_supplicant_conf="/etc/wpa_supplicant.conf"
+export env_wifi_hostap_conf="/etc/hostapd.conf"
+export env_wifi_hostap_interface="wlan0"

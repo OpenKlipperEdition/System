@@ -1,0 +1,6 @@
+/home/cwang/work/x2600/buildroot/package/lvgl/lvglbase/0001-change-direct_mode.patch
+/home/cwang/work/x2600/buildroot/package/lvgl/lvglbase/0002-enable-jpeg.patch
+/home/cwang/work/x2600/buildroot/package/lvgl/lvglbase/0003-Fix-horizontal-screen-rotation-90-bug.patch
+/home/cwang/work/x2600/buildroot/package/lvgl/lvglbase/0004-set_config_by_buildroot.patch
+/home/cwang/work/x2600/buildroot/package/lvgl/lvglbase/0005-update_config.patch
+/home/cwang/work/x2600/buildroot/package/lvgl/lvglbase/0006-update-RESOLUTION-and-RES_SHIFT-for-running-light-stuck.patch

@@ -1,0 +1,8 @@
+export env_adb_device_name_prefix="halley5"
+export QWS_SIZE="480x320"
+export QWS_DISPLAY="LinuxFB:mmWidth130:mmHeight89:0"
+export env_wifi_mac_addr_path="/data/misc/wifi/"
+export env_wifi_enable_when_system_up="y"
+export env_wifi_wpa_supplicant_conf="/usr/data/wpa_supplicant.conf"
+export env_wifi_hostap_conf="/usr/data/hostapd.conf"
+export env_wifi_hostap_interface="wlan0"

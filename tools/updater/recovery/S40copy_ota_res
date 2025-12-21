@@ -1,0 +1,27 @@
+#!/bin/sh
+
+case "$1" in
+  start)
+    a=`diff -rq /etc/ota_res /usr/data/ota_res`
+
+    if [ $? != 0 ]; then
+	a=1
+    fi
+
+    if [ "$a" != "" ]; then
+	rm -rf /usr/data/ota_res
+	cp -r /etc/ota_res /usr/data/ota_res
+	#cp -r /lib/firmware /usr/data/firmware
+    fi
+	;;
+  stop)
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

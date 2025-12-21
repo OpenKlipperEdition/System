@@ -1,0 +1,10 @@
+#! /bin/sh
+
+case "$1" in
+	start)
+		h264e-nl-server &
+		;;
+	stop)
+		killall -9 h264e-nl-server
+		;;
+esac

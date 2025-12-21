@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# start hid_keyboard
+#
+
+
+cd $CONFIGFS_HOME/usb_gadget
+
+case "$1" in
+  start)
+	echo "Starting usb hid keyboard devices ..."
+
+	mkdir -p demo/functions/hid.keyboard
+	if [ $? != 0 ]; then
+		echo "unable to create function hid keyboard. check kernel config!"
+		exit 1
+	fi
+
+	#enable remote wakeup.
+	echo 0xa0 > demo/configs/c.1/bmAttributes
+
+	echo 1 > demo/functions/hid.keyboard/subclass
+	echo 1 > demo/functions/hid.keyboard/protocol
+	echo 8 > demo/functions/hid.keyboard/report_length
+	echo -ne \\x5\\x1\\x9\\x6\\xa1\\x1\\x5\\x7\\x19\\xe0\\x29\\xe7\\x15\\x0\\x25\\x01\\x75\\x01\\x95\\x08\\x81\\x02\\x95\\x01\\x75\\x08\\x81\\x03\\x95\\x05\\x75\\x01\\x05\\x08\\x19\\x01\\x29\\x05\\x91\\x02\\x95\\x01\\x75\\x03\\x91\\x03\\x95\\x06\\x75\\x08\\x15\\x00\\x25\\x65\\x05\\x07\\x19\\x00\\x29\\x65\\x81\\x00\\xc0 > demo/functions/hid.keyboard/report_desc
+
+	ln -s demo/functions/hid.keyboard demo/configs/c.1
+
+	;;
+  stop)
+	echo "Stop usb hid keyboard ..."
+	if [ ! -d demo/configs/c.1/hid.keyboard ];then
+		exit 0
+	fi
+
+	rm -r demo/configs/c.1/hid.keyboard
+	rmdir demo/functions/hid.keyboard
+
+	;;
+  restart|reload)
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

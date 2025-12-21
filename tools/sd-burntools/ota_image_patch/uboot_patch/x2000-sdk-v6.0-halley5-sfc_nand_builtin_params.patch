@@ -1,0 +1,91 @@
+diff --git a/include/configs/halley5.h b/include/configs/halley5.h
+index c587970..5c818f8 100644
+--- a/include/configs/halley5.h
++++ b/include/configs/halley5.h
+@@ -97,7 +97,7 @@
+ #define CONFIG_DDR_HOST_CC
+ /*#define CONFIG_DDR_TYPE_DDR3*/
+ #define CONFIG_DDR_TYPE_LPDDR3
+-#define CONFIG_DDR_TYPE_LPDDR2
++/* #define CONFIG_DDR_TYPE_LPDDR2 */
+ #define CONFIG_DDR_CS0			1	/* 1-connected, 0-disconnected */
+ #define CONFIG_DDR_CS1			0	/* 1-connected, 0-disconnected */
+ #define CONFIG_DDR_DW32			0	/* 1-32bit-width, 0-16bit-width */
+@@ -389,7 +389,7 @@
+ #define CONFIG_SYS_MAX_NAND_DEVICE		1
+ #define CONFIG_SYS_NAND_BASE			0xb3441000
+ #define CONFIG_SYS_MAXARGS			16
+-/*#define CONFIG_NAND_BUILTIN_PARAMS*/
++#define CONFIG_NAND_BUILTIN_PARAMS
+ 
+ /* sfc nand env config */
+ #define CONFIG_MTD_DEVICE
+diff --git a/spl/Makefile b/spl/Makefile
+index bd24f96..682a9ac 100644
+--- a/spl/Makefile
++++ b/spl/Makefile
+@@ -232,6 +232,9 @@ $(obj)u-boot-spl.bin:	$(obj)u-boot-spl
+ endif
+ endif
+ endif
++ifdef CONFIG_NAND_BUILTIN_PARAMS
++	$(OBJTREE)/tools/ingenic-tools/sfc_nand_builtin_params $@ $@ $(CONFIG_SPIFLASH_PART_OFFSET)
++endif
+ 
+ GEN_UBOOT = \
+ 	cd $(obj) && $(LD) $(LDFLAGS) $(LDFLAGS_$(@F)) $(__START) \
+diff --git a/tools/ingenic-tools/sfc_builtin_params/nand_device.c b/tools/ingenic-tools/sfc_builtin_params/nand_device.c
+index 9938bbe..8aa677a 100644
+--- a/tools/ingenic-tools/sfc_builtin_params/nand_device.c
++++ b/tools/ingenic-tools/sfc_builtin_params/nand_device.c
+@@ -8,7 +8,7 @@ nand_partition_builtin_params_t nand_builtin_params = {
+ 	.magic_num = SPINAND_MAGIC_NUM,
+ 
+ 	/* max 10 partitions*/
+-	.partition_num = 3,
++	.partition_num = 6,
+ #if 0
+ 	.partition_num = 4,
+ #endif
+@@ -21,17 +21,35 @@ nand_partition_builtin_params_t nand_builtin_params = {
+ 		[0].mask_flags = NANDFLASH_PART_RW,
+ 		[0].manager_mode = MTD_MODE,
+ 
+-		[1].name = "kernel",
++		[1].name = "nv",
+ 		[1].offset = 0x100000,
+-		[1].size =   0x800000,
++		[1].size =   0x100000,
+ 		[1].mask_flags = NANDFLASH_PART_RW,
+ 		[1].manager_mode = MTD_MODE,
+ 
+-		[2].name = "rootfs",
+-		[2].offset = 0x900000,
+-		[2].size = 0xf700000,
++		[2].name = "kernel",
++		[2].offset = 0x200000,
++		[2].size = 0x800000,
+ 		[2].mask_flags = NANDFLASH_PART_RW,
+-		[2].manager_mode = UBI_MANAGER,
++		[2].manager_mode = MTD_MODE,
++
++		[3].name = "recovery",
++		[3].offset = 0xa00000,
++		[3].size = 0x1000000,
++		[3].mask_flags = NANDFLASH_PART_RW,
++		[3].manager_mode = MTD_MODE,
++
++		[4].name = "system",
++		[4].offset = 0x1a00000,
++		[4].size = 0x6400000,
++		[4].mask_flags = NANDFLASH_PART_RW,
++		[4].manager_mode = UBI_MANAGER,
++
++		[5].name = "userdata",
++		[5].offset = 0x7e00000,
++		[5].size = 0x8200000,
++		[5].mask_flags = NANDFLASH_PART_RW,
++		[5].manager_mode = UBI_MANAGER,
+ 
+ #if 0
+ 		[2].name = "rootfs",

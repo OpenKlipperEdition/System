@@ -1,0 +1,4 @@
+#LOCAL_EXT_NAME:=
+LOCAL_EXT_NAME:=.a
+IS_RTOS_LIBRARY := $(LOCAL_MODULE)$(LOCAL_EXT_NAME)
+include $(BUILD_SYSTEM)/build_rtos_module.mk

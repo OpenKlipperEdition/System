@@ -1,0 +1,34 @@
+#!/bin/sh
+
+mode=$(cat /sys/devices/platform/ahb2/13500000.otg/dwc2_mode)
+
+if [ "$mode" != "host" ]
+
+then
+
+	while [ true ];do
+
+		/bin/sleep 1.2
+
+		if [ -e "/sys/kernel/config/usb_gadget/demo/UDC" ]
+
+		then
+			read string < /sys/kernel/config/usb_gadget/demo/UDC
+
+			if [ -z "$string" ]
+
+			then
+				echo "13500000.otg" > /sys/kernel/config/usb_gadget/demo/UDC
+
+				/etc/init.d/usb/uvc poststart
+				/etc/init.d/usb/uac1 poststart
+			fi
+
+		fi
+
+	done
+
+fi
+
+
+

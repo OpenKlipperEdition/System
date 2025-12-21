@@ -1,0 +1,9 @@
+LOCAL_PATH := $(my-dir)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := install_bt_bcm4345c5_firmware
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH := $(TARGET_FS_BUILD)/firmware
+BCM4345C5_FILES := $(notdir $(wildcard $(LOCAL_PATH)/BCM4345C5*))
+LOCAL_COPY_FILES := $(BCM4345C5_FILES)
+include $(BUILD_MULTI_PREBUILT)

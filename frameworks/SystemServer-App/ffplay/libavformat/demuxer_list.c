@@ -1,0 +1,13 @@
+static const AVInputFormat * const demuxer_list[] = {
+    &ff_aac_demuxer,
+    &ff_asf_demuxer,
+    &ff_h264_demuxer,
+    &ff_mjpeg_demuxer,
+    &ff_mov_demuxer,
+    &ff_mp3_demuxer,
+    &ff_mpegts_demuxer,
+    &ff_pcm_s8_demuxer,
+    &ff_rm_demuxer,
+    &ff_sdp_demuxer,
+    &ff_wav_demuxer,
+    NULL };
