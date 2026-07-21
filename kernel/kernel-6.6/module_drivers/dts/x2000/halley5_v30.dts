@@ -315,7 +315,16 @@
 / {
 	wlan_pwrseq: wlan_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpd 1 GPIO_ACTIVE_LOW>;
+		/* OpenKE (2026-07-21, FIRMWARE.md sec 40): missing 3rd cell - this SoC's gpio
+		 * controller binding is #gpio-cells = <3> (pin, active flag, ingenic bias flag,
+		 * matching every other &gpd/&gpc/etc reference in this file), but this line only
+		 * ever had 2, causing a real, confirmed "OF: /wlan_pwrseq: #gpio-cells = 3 found 2"
+		 * kernel warning at boot - the same physical pin (gpd 1) is referenced correctly
+		 * with all 3 cells two lines up in gpio_wl_reg_on. Real, live-confirmed root cause
+		 * of mmc1 (the WiFi SDIO card) failing "Failed to initialize a non-removable card"
+		 * every boot - this pwrseq node is what's supposed to toggle the chip's reset/
+		 * power-on line before the SDIO core ever tries to enumerate it. */
+		reset-gpios = <&gpd 1 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 	};
 };
 
