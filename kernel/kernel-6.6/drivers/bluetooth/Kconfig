@@ -236,6 +236,23 @@ config BT_HCIUART_RTL
 
 	  Say Y here to compile support for Realtek protocol.
 
+config BT_HCIUART_BCM_H5
+	bool "Broadcom protocol support over Three-wire (H5)"
+	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	depends on GPIOLIB
+	select BT_HCIUART_3WIRE
+	select BT_BCM
+	help
+	  OpenKE addition: enables Broadcom firmware/patch-RAM loading
+	  (btbcm_initialize()/btbcm_finalize(), the same calls the existing
+	  H4-only CONFIG_BT_HCIUART_BCM path uses) over the H5 three-wire
+	  transport instead, for boards whose UART has no real hardware
+	  RTS/CTS wiring and so cannot reliably use H4. See the real board
+	  DTS evidence for this in ~/Documents/ke-mainline-klipper/FIRMWARE.md.
+
+	  Say Y here to compile support for Broadcom protocol over H5.
+
 config BT_HCIUART_QCA
 	bool "Qualcomm Atheros protocol support"
 	depends on BT_HCIUART

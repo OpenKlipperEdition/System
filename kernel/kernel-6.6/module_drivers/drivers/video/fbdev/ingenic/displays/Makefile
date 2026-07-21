@@ -10,6 +10,7 @@ obj-$(CONFIG_STAGE_JD9365) += jd9365/panel-jd9365.o
 obj-$(CONFIG_STAGE_ST7701S) += panel-st7701s.o
 obj-$(CONFIG_STAGE_ST7701S_DX) += st7701s_dx3.95ips/panel-st7701sdx.o
 obj-$(CONFIG_STAGE_ST7701S_RGB666) += panel-st7701s-rgb666.o
+obj-$(CONFIG_STAGE_OPENKE_GENERAL_480X272) += panel-openke-general-480x272.o
 obj-$(CONFIG_STAGE_YTS500XLAI) += panel-yts500xlai.o
 obj-$(CONFIG_STAGE_YLYM286A) += panel-ylym286a.o
 obj-$(CONFIG_STAGE_KD035HVFBD037)	+= panel-kd035hvfbd037.o

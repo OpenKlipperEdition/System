@@ -300,6 +300,21 @@ static int ingenic_wdt_probe(struct platform_device *pdev)
 	}
 #endif
 
+	/* OpenKE (2026-07-21, FIRMWARE.md sec 32/33): explicitly stop the counter at probe time,
+	 * unconditionally. This driver never did this before - it only registers the /dev/watchdog
+	 * device, it never touches the actual hardware enable bit unless userspace opens the
+	 * device (which nothing on our build does) or .start()/.stop() get called. If U-Boot/SPL
+	 * ever left this counter running from an earlier stage, nothing in this kernel would ever
+	 * stop it - it would just keep ticking down toward whatever expiry SPL set, independent of
+	 * whether this driver "successfully probed" or not. Real, empirical motivation: a boot
+	 * attempt reached "Run /linuxrc as init process" then reset with zero panic message and
+	 * zero delay, despite CONFIG_PANIC_TIMEOUT=10 - a real software panic() always prints
+	 * something and waits; this didn't, meaning it was very likely a hardware-level reset, not
+	 * a software crash. This write is a defensive, always-safe no-op if the counter was never
+	 * running in the first place.
+	 */
+	writeb(0x0, drvdata->base + INGENIC_REG_WDT_COUNTER_ENABLE);
+
 	writel(INGENIC_WDT_TIMER_MASK, drvdata->base + INGENIC_REG_WDT_TIMER_MASK_CLR);
 	writel(INGENIC_WDT_TIMER_FLAG, drvdata->base + INGENIC_REG_WDT_TIMER_FLAG_CLR);
 #if IRQ_SWITCH

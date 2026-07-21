@@ -1144,6 +1144,17 @@ config TOUCHSCREEN_TSC2005
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc2005.
 
+config TOUCHSCREEN_NS2009
+	tristate "Nsiway NS2009 based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a Nsiway NS2009 based touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ns2009.
+
 config TOUCHSCREEN_TSC2007
 	tristate "TSC2007 based touchscreens"
 	depends on I2C

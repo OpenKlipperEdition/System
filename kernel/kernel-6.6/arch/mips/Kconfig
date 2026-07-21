@@ -480,6 +480,29 @@ config MACH_XBURST2
     select SYS_SUPPORTS_HIGHMEM
     select XBURST2_CPU_SCACHE
     select HAVE_KERNEL_GZIP
+    # OpenKE (2026-07-20, FIRMWARE.md sec 29): HAVE_KERNEL_XZ is only ever
+    # selected by arch/s390 elsewhere in this tree - without it here,
+    # CONFIG_KERNEL_XZ's own "depends on HAVE_KERNEL_XZ" can never be
+    # satisfied, so a Buildroot config fragment forcing CONFIG_KERNEL_XZ=y
+    # gets silently discarded by a later `make olddefconfig` (confirmed by
+    # direct testing: the choice falls back to its default, KERNEL_GZIP,
+    # every time). This board's SPL/U-Boot stage has no gunzip support, and
+    # arch/mips/boot/Makefile's suffix-y logic only special-cases
+    # GZIP/BZIP2/LZMA/LZO, so making XZ selectable here is what actually lets
+    # the fragment's CONFIG_KERNEL_XZ=y take effect and fall through to an
+    # uncompressed uImage.bin, matching the real stock kernel/kernel2 images.
+    select HAVE_KERNEL_XZ
+    # OpenKE (2026-07-20, FIRMWARE.md sec 30): the XZ-as-uncompressed trick
+    # above solved the "SPL can't gunzip" problem but exposed a second, real
+    # one - our real uncompressed kernel is ~14.5MB, well over the kernel2
+    # partition's fixed 8MB capacity (confirmed: flash-spare-slot.sh's own
+    # size check would refuse to write it). Trying LZO instead - it IS
+    # special-cased by arch/mips/boot/Makefile's suffix-y logic (produces a
+    # real compressed ".lzo" uImage, unlike XZ's uncompressed fallthrough),
+    # and LZO's simplicity (vs. gzip's DEFLATE) makes it plausible this
+    # board's minimal SPL supports it even though it apparently doesn't
+    # support gzip - genuinely untested until tried on real hardware.
+    select HAVE_KERNEL_LZO
     select IRQ_MIPS_CPU
     select USE_OF
     select LIBFDT

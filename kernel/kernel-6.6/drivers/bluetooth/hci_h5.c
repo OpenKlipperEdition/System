@@ -20,6 +20,7 @@
 #include <net/bluetooth/hci_core.h>
 
 #include "btrtl.h"
+#include "btbcm.h"
 #include "hci_uart.h"
 
 #define SUSPEND_TIMEOUT_MS	6000
@@ -1082,6 +1083,67 @@ static const struct h5_device_data h5_data_rtl8723bs = {
 };
 #endif
 
+#ifdef CONFIG_BT_HCIUART_BCM_H5
+/*
+ * OpenKE addition (see ~/Documents/ke-mainline-klipper/FIRMWARE.md): a Broadcom
+ * h5_vnd, mirroring the rtl_vnd block above. Exists because CONFIG_BT_HCIUART_BCM
+ * (hci_bcm.c) only works over H4 (it selects BT_HCIUART_H4), but this board's real
+ * UART wiring (confirmed via the vendor board DTS: halley5_v30.dts selects the
+ * 2-pin uart3_pc pinmux group, not the 4-pin uart3_pd group with RTS/CTS) has no
+ * hardware flow control - the same reason Creality's own stock driver used H5
+ * instead of H4. btbcm_initialize()/btbcm_finalize() (btbcm.c) are themselves
+ * transport-agnostic - they only send/receive ordinary HCI commands through
+ * whatever hci_uart protocol is active - so the real gap was purely that nobody
+ * had wired that call into hci_h5.c's own vendor-extension mechanism, the same
+ * mechanism rtl_vnd above already uses for Realtek. UNTESTED against real
+ * hardware - no MIPS/X2000 boot test has been possible in this workspace yet.
+ */
+static int h5_btbcm_setup(struct h5 *h5)
+{
+	bool fw_load_done = false;
+	int err;
+
+	err = btbcm_initialize(h5->hu->hdev, &fw_load_done, false);
+	if (err)
+		return err;
+
+	if (!fw_load_done)
+		return 0;
+
+	return btbcm_finalize(h5->hu->hdev, &fw_load_done, false);
+}
+
+static void h5_btbcm_open(struct h5 *h5)
+{
+	/* Devices always start with these fixed parameters, same as h5_btrtl_open() */
+	serdev_device_set_flow_control(h5->hu->serdev, false);
+	serdev_device_set_baudrate(h5->hu->serdev, 115200);
+
+	/* The controller needs a reset pulse to startup - mirrors h5_btrtl_open(),
+	 * using only enable_gpio since this board has no separate device-wake line
+	 * wired for BT (see the board DTS - only reset/enable is described there). */
+	gpiod_set_value_cansleep(h5->enable_gpio, 0);
+	msleep(100);
+	gpiod_set_value_cansleep(h5->enable_gpio, 1);
+	msleep(500);
+}
+
+static void h5_btbcm_close(struct h5 *h5)
+{
+	gpiod_set_value_cansleep(h5->enable_gpio, 0);
+}
+
+static struct h5_vnd bcm_vnd = {
+	.setup		= h5_btbcm_setup,
+	.open		= h5_btbcm_open,
+	.close		= h5_btbcm_close,
+};
+
+static const struct h5_device_data h5_data_bcm4343x = {
+	.vnd = &bcm_vnd,
+};
+#endif
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id h5_acpi_match[] = {
 #ifdef CONFIG_BT_HCIUART_RTL
@@ -1108,6 +1170,10 @@ static const struct of_device_id rtl_bluetooth_of_match[] = {
 	  .data = (const void *)&h5_data_rtl8723bs },
 	{ .compatible = "realtek,rtl8723ds-bt",
 	  .data = (const void *)&h5_data_rtl8723bs },
+#endif
+#ifdef CONFIG_BT_HCIUART_BCM_H5
+	{ .compatible = "openke,bcm4343x-bt",
+	  .data = (const void *)&h5_data_bcm4343x },
 #endif
 	{ },
 };
