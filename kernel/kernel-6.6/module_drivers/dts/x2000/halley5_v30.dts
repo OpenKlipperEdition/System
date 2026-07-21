@@ -523,9 +523,18 @@
 	pinctrl-0 =  <&baic4_pd>;
 };
 
+/* OpenKE (2026-07-21, FIRMWARE.md sec 43): disabled - real, confirmed pin conflict with
+ * uart1 (gpc 21, part of uart1_pc's 4-pin group, needed for the real mainboard MCU link -
+ * "pin GPC-21 already requested by 134da000.as-dmic; cannot claim for 10031000.serial" on a
+ * real boot). This override had zero justification/verification comment, unlike everything
+ * else in this file - a 4-channel digital-mic array is a common reference-board demo
+ * feature, and this printer's confirmed real audio path is the speaker/codec (icodec,
+ * "x2000-sound sound: Sound Card successed"), not a mic array. Same class of bug as
+ * BCMDHD/GT9XX/the camera ISP pipeline/the second MIPI panel found earlier this session -
+ * enabled without ever being confirmed against real hardware, this time actively blocking
+ * something that IS confirmed real and needed. */
 &as_dmic {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dmic_pc_4ch>;
+	status = "disabled";
 };
 
 &icodec {
