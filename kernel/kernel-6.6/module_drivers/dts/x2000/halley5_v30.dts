@@ -488,7 +488,16 @@
 	status = "okay";
 	/*ingenic,id-dete-gpio = <&gpd 18 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>; Shares pins with msc1*/
 	ingenic,vbus-dete-gpio = <&gpd 17 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
-	ingenic,drvvbus-gpio = <&gpe 22 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+	/* OpenKE (2026-07-21, FIRMWARE.md sec 42): wrong pin - real, live-confirmed via stock's
+	 * own decompiled DTB (vendor/device-backups/stock-live-device-tree.dtb): stock's real,
+	 * working drvvbus-gpio is gpc pin 9 (raw value <0x07 0x09 0x01 0x00>, phandle 0x07 = gpc
+	 * confirmed against stock's own gpio-bank phandle table), not gpe pin 22. Both our tree
+	 * and stock's use the exact same driver here (compatible "ingenic,usbphy-x2000" /
+	 * "ingenic,x2000-dwc2-hsotg" match on both sides, confirmed via stock's own live dmesg
+	 * showing serial number "13500000.otg_new" - same modern driver, just not suffixed here
+	 * since this tree only ever has the one variant) - this was never a "wrong driver"
+	 * problem, just the wrong physical pin on the right node the whole time. */
+	ingenic,drvvbus-gpio = <&gpc 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 };
 
 &as_be_baic {
