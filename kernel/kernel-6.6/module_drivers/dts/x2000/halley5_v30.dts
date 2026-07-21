@@ -88,6 +88,24 @@
 	pinctrl-0 = <&uart0_pd>;
 };
 
+/* OpenKE (2026-07-21, FIRMWARE.md sec 43): real, confirmed gap - this board file never
+ * referenced &uart1 at all, unlike every other uart actually in use here. Klipper's own
+ * printer.cfg confirms /dev/ttyS1 is the real serial link to the printer's mainboard MCU
+ * ([mcu] serial:/dev/ttyS1, vendor/device-backups/printer_data_config/printer.cfg) - the
+ * base x2000.dtsi leaves uart1 with no explicit status property at all (defaults to
+ * enabled per devicetree spec), but without this pinctrl assignment the physical TX/RX
+ * pins were never actually muxed to the UART1 function, only the controller itself being
+ * nominally "on". Only one real pin group exists for this uart (unlike uart3's 2-pin/
+ * 4-pin choice) - x2000-pinctrl.dtsi's uart1_pc, gpc 21-24. Never tested against real
+ * mainboard hardware yet (needs the mainboard physically reconnected) - this fixes the
+ * one thing confirmable from source alone (the missing pin wiring); whether the actual
+ * MCU handshake succeeds still needs a real connected test. */
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pc>;
+};
+
 &uart2 {
 	status = "disable";
 };
