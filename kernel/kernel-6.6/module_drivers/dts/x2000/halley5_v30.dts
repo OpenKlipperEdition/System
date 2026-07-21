@@ -325,6 +325,16 @@
 		 * every boot - this pwrseq node is what's supposed to toggle the chip's reset/
 		 * power-on line before the SDIO core ever tries to enumerate it. */
 		reset-gpios = <&gpd 1 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+		/* OpenKE (2026-07-21, FIRMWARE.md sec 40): the gpio-cells fix above is real and
+		 * confirmed (the kernel warning is gone on a live re-test), but mmc1 still failed
+		 * to initialize afterward - drivers/mmc/core/pwrseq_simple.c's own
+		 * post_power_on_delay_ms defaults to 0 when this property is absent (it was never
+		 * set here at all), meaning the SDIO core was probing the chip with zero delay
+		 * after reset release. Real, common failure mode for WiFi/BT combo chips (the CYW43438
+		 * here) that need real time to boot/stabilize before responding to SDIO commands.
+		 * 200ms is a generously safe value for this chip class - untested against real
+		 * hardware as of writing this comment, next boot test will confirm either way. */
+		post-power-on-delay-ms = <200>;
 	};
 };
 
