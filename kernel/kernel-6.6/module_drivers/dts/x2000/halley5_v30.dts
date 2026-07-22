@@ -129,10 +129,14 @@
 		  };
 };
 
+/* OpenKE (2026-07-23): was status="okay" with pinctrl-0 = <&uart0_pd> (gpd 23-26), which
+ * hard-conflicts with msc0_8bit (gpd 17-26) - the real eMMC boot storage, already confirmed
+ * essential above. dmesg showed "pin GPD-23 already requested by 13450000.msc; cannot claim
+ * for 10030000.serial" every boot; msc0 always wins the pin so nothing actually broke, but
+ * nothing in this project uses uart0 either (unlike uart1/uart3/uart4, all documented real
+ * links above) - disabling it outright removes the conflict instead of just tolerating it. */
 &uart0 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pd>;
+	status = "disable";
 };
 
 /* OpenKE (2026-07-21, FIRMWARE.md sec 43): real, confirmed gap - this board file never
@@ -173,7 +177,32 @@
 	 * Broadcom path. No enable-gpios property: no dedicated BT reset/
 	 * enable pin has been confirmed live (only the shared WiFi-side
 	 * regulator/reset in &msc1's wlan_pwrseq below is confirmed) - the
-	 * driver treats this as optional and skips GPIO toggling if absent. */
+	 * driver treats this as optional and skips GPIO toggling if absent.
+	 *
+	 * OpenKE (2026-07-23): uart3_pc (gpc 25-26) is the SAME two physical pins
+	 * as i2c4_pc (&i2c4 below, real touchscreen bus) - confirmed by resolving
+	 * both pinctrl phandles in the real stock device's own live DTB: identical
+	 * <bank 25 26>, only the funcsel differs (uart3 FUNCTION0 vs i2c4 FUNCTION1).
+	 * Stock's own DTB has this exact same dual-claim on both nodes - this is a
+	 * genuine hardware pin-sharing design, not a bug in this file. Since both
+	 * this node and &i2c4 are statically "okay" here, whichever driver probes
+	 * first wins the pin permanently (currently i2c4/touch, confirmed via
+	 * dmesg: "pin GPC-25 already requested by 10054000.i2c; cannot claim for
+	 * 10033000.serial"), and this uart3 node's own pinctrl apply silently
+	 * fails - BT will not actually work over these pins while touch is active.
+	 * Stock resolves this by dynamically re-muxing at runtime when the user
+	 * actually invokes bt_enable_bsa.sh (releasing i2c4's claim first), not by
+	 * having both statically enabled at boot the way this file does. Properly
+	 * supporting BT here needs the same kind of runtime pin hand-off, not a
+	 * static devicetree change - moving this project's &i2c4 to its i2c4_pd
+	 * alternate (gpd 0-1) was considered and rejected: stock's real DTB never
+	 * references i2c4_pd, only i2c4_pc, so there's no confirmation those
+	 * alternate pins are physically wired to the NS2009 touch chip on this
+	 * board - moving it would risk silently breaking the touchscreen (a
+	 * confirmed, load-bearing peripheral) to maybe fix BT (never confirmed
+	 * working against real mainboard hardware at all). Left as-is; touch wins,
+	 * BT stays a known, real, unfixed limitation until someone implements the
+	 * dynamic hand-off. */
 	bluetooth {
 		compatible = "openke,bcm4343x-bt";
 	};
