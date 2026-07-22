@@ -331,11 +331,24 @@ static bool msc1_trace;
 module_param(msc1_trace, bool, 0644);
 MODULE_PARM_DESC(msc1_trace, "log every MSC1 SDHCI register change during manual insert (default: off, only report the first SDHCI_RESPONSE_0 change)");
 
+/* OpenKE (2026-07-22, FIRMWARE.md sec 50): WL_REG_ON (gpd 4 / PD04) is
+ * requested exclusively by the mmc-pwrseq-simple platform driver via
+ * reset-gpios, so sdhci-ingenic.c can't devm_gpiod_get() it itself without
+ * an -EBUSY conflict. gpio_get_value() is the legacy global-number gpiolib
+ * accessor (the same one /sys/kernel/debug/gpio itself uses) - it only
+ * reads, doesn't need ownership, so it can observe the real live pin state
+ * without touching how pwrseq_simple owns/drives it. 100 is this pin's real
+ * global gpio number, confirmed live via "gpio-100 (|reset ) out lo ACTIVE
+ * LOW" in /sys/kernel/debug/gpio on this exact board (gpiochip3 GPIOs
+ * 96-127 = GPD, +4 = PD04). */
+#define OPENKE_WL_REG_ON_GPIO 100
+
 static void openke_msc1_trace(struct sdhci_host *host)
 {
 	void __iomem *cpm_msc1cdr;
 	u32 prev[25];
 	u32 prev_cdr = 0;
+	int prev_gpio = -1;
 	ktime_t t0;
 	bool first = true;
 	bool response_seen = false;
@@ -356,6 +369,15 @@ static void openke_msc1_trace(struct sdhci_host *host)
 
 	while (ktime_ms_delta(ktime_get(), t0) < 2000) {
 		ms = ktime_ms_delta(ktime_get(), t0);
+		{
+			int gpio_val = gpio_get_value(OPENKE_WL_REG_ON_GPIO);
+
+			if (first || gpio_val != prev_gpio) {
+				pr_info("openke_msc1_trace: %6lld ms WL_REG_ON (gpio %d) = %d\n",
+					ms, OPENKE_WL_REG_ON_GPIO, gpio_val);
+			}
+			prev_gpio = gpio_val;
+		}
 		for (i = 0; i < 25; i++) {
 			u32 v = readl(host->ioaddr + i * 4);
 
@@ -469,9 +491,17 @@ int ingenic_mmc_manual_detect(int index, int on)
 		 * before we cut power, so our power-cycle can never land mid-command
 		 * against a rescan that's still using the chip. */
 		cancel_delayed_work_sync(&host->mmc->detect);
+		pr_info("openke: before power_off: power_mode=%d WL_REG_ON=%d\n",
+			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
 		mmc_power_off(host->mmc);
+		pr_info("openke: after power_off: power_mode=%d WL_REG_ON=%d\n",
+			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
 		msleep(50);
+		pr_info("openke: after msleep(50): power_mode=%d WL_REG_ON=%d\n",
+			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
 		mmc_power_up(host->mmc, host->mmc->ocr_avail);
+		pr_info("openke: after power_up: power_mode=%d WL_REG_ON=%d\n",
+			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
 #ifdef CLK_CTRL
 		ingenic_mmc_clk_onoff(sdhci_ing, 1);
 #endif
@@ -770,6 +800,15 @@ static int sdhci_ingenic_probe(struct platform_device *pdev)
 		pm_runtime_get_noresume(&pdev->dev);
 		return ret;
 	}
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 50): temporary diagnostic - the
+	 * live GPIO trace shows WL_REG_ON never leaves raw LOW no matter what
+	 * reset-gpios says, which is exactly what happens if host->pwrseq
+	 * never actually got attached here (mmc_pwrseq_alloc() silently
+	 * returns 0 with pwrseq left NULL if of_parse_phandle() doesn't find
+	 * "mmc-pwrseq" on this exact node - no error, no log line either way).
+	 * Settle it directly instead of inferring from what's missing. */
+	pr_info("openke: mmc_of_parse ok, host->mmc->parent=%s of_node=%pOF pwrseq=%p\n",
+		dev_name(host->mmc->parent), host->mmc->parent->of_node, host->mmc->pwrseq);
 
 	sdhci_enable_v4_mode(host);
 	ret = sdhci_add_host(host);
