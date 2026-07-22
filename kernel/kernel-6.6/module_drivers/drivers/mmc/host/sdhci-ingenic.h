@@ -83,6 +83,11 @@ struct sdhci_ingenic {
 	int             ext_cd_gpio;
 	unsigned long           clk_rates;
 	unsigned long           flags;
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 51): WL_REG_ON driven directly,
+	 * bypassing mmc_pwrseq_simple - see ingenic_mmc_manual_detect() and
+	 * the "wlan-reg-on-gpios" devicetree property. NULL/absent on msc0
+	 * and msc2, which don't have this property. */
+	struct gpio_desc        *wlan_reg_on;
 };
 
 int ingenic_sdio_wlan_init(struct device *dev, int index);

@@ -5,6 +5,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -491,22 +492,37 @@ int ingenic_mmc_manual_detect(int index, int on)
 		 * before we cut power, so our power-cycle can never land mid-command
 		 * against a rescan that's still using the chip. */
 		cancel_delayed_work_sync(&host->mmc->detect);
-		pr_info("openke: before power_off: power_mode=%d WL_REG_ON=%d\n",
-			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
+		/* OpenKE (2026-07-22, FIRMWARE.md sec 51): WL_REG_ON now driven
+		 * directly, bypassing mmc_pwrseq_simple entirely - sec 50 proved
+		 * mmc_power_up()'s pwrseq sequence completes (power_mode really
+		 * transitions 0->2) without ever moving the physical pin, and
+		 * PD04 is no longer in wlan_pwrseq's reset-gpios at all (see the
+		 * devicetree), so mmc_power_off()/mmc_power_up() below can no
+		 * longer touch this pin either way - they're kept only for their
+		 * other real effects (voltage/clock setup via mmc_set_ios()).
+		 * Sequence matches stock's own disassembled bcm_wlan_power_on()
+		 * exactly: raw LOW, real 100ms hold, raw HIGH, detect immediately
+		 * - no extra delay invented after the HIGH transition. */
 		mmc_power_off(host->mmc);
-		pr_info("openke: after power_off: power_mode=%d WL_REG_ON=%d\n",
-			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
-		msleep(50);
-		pr_info("openke: after msleep(50): power_mode=%d WL_REG_ON=%d\n",
-			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
+		if (sdhci_ing->wlan_reg_on) {
+			gpiod_set_raw_value_cansleep(sdhci_ing->wlan_reg_on, 0);
+			pr_info("openke: WIFI_SEQ: WL_REG_ON requested_raw=0 descriptor_raw=%d\n",
+				gpiod_get_raw_value_cansleep(sdhci_ing->wlan_reg_on));
+		}
+		pr_info("openke: WIFI_SEQ: sleeping 100 ms\n");
+		msleep(100);
 		mmc_power_up(host->mmc, host->mmc->ocr_avail);
-		pr_info("openke: after power_up: power_mode=%d WL_REG_ON=%d\n",
-			host->mmc->ios.power_mode, gpio_get_value(OPENKE_WL_REG_ON_GPIO));
+		if (sdhci_ing->wlan_reg_on) {
+			gpiod_set_raw_value_cansleep(sdhci_ing->wlan_reg_on, 1);
+			pr_info("openke: WIFI_SEQ: WL_REG_ON requested_raw=1 descriptor_raw=%d\n",
+				gpiod_get_raw_value_cansleep(sdhci_ing->wlan_reg_on));
+		}
 #ifdef CLK_CTRL
 		ingenic_mmc_clk_onoff(sdhci_ing, 1);
 #endif
 		host->flags &= ~SDHCI_DEVICE_DEAD;
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+		pr_info("openke: WIFI_SEQ: triggering manual detection\n");
 		mmc_detect_change(sdhci_ing->host->mmc, 0);
 		openke_msc1_trace(host);
 	} else {
@@ -713,6 +729,27 @@ static int sdhci_ingenic_probe(struct platform_device *pdev)
 	sdhci_ing->dev  = &pdev->dev;
 	sdhci_ing->pdev = pdev;
 	sdhci_ing->pdata = pdata;
+
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 51): WL_REG_ON driven directly -
+	 * see ingenic_mmc_manual_detect(). GPIOD_ASIS: this driver only ever
+	 * uses gpiod_set_raw_value_cansleep() on this descriptor, never the
+	 * active-flag-translating gpiod_set_value_cansleep(), so the initial
+	 * direction/level here doesn't matter - the first real write in
+	 * ingenic_mmc_manual_detect() sets it explicitly. Optional: absent on
+	 * msc0/msc2, which don't have "wlan-reg-on-gpios". */
+	sdhci_ing->wlan_reg_on = devm_gpiod_get_optional(dev, "wlan-reg-on", GPIOD_ASIS);
+	if (IS_ERR(sdhci_ing->wlan_reg_on)) {
+		return dev_err_probe(dev, PTR_ERR(sdhci_ing->wlan_reg_on),
+			"failed to acquire WLAN_REG_ON GPIO\n");
+	}
+	if (sdhci_ing->wlan_reg_on) {
+		ret = gpiod_direction_output_raw(sdhci_ing->wlan_reg_on, 0);
+		if (ret) {
+			return dev_err_probe(dev, ret,
+				"failed to configure WLAN_REG_ON output\n");
+		}
+		pr_info("openke: WLAN_REG_ON GPIO acquired, direction_output_raw(0) ret=%d\n", ret);
+	}
 
 	host->ioaddr = of_iomap(pdev->dev.of_node, 0);
 	if (IS_ERR(host->ioaddr)) {
