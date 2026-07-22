@@ -87,6 +87,14 @@ struct sdhci_ingenic {
 
 int ingenic_sdio_wlan_init(struct device *dev, int index);
 int ingenic_sdio_wlan_deinit(struct device *dev);
+/* OpenKE (2026-07-22, FIRMWARE.md sec 52): sec 47 renamed these to
+ * sdhci_ingenic_mmc_clk_ctrl/sdhci_ingenic_mmc_manual_detect to dodge a real
+ * link collision with ingenic_mmc.c's own functions of these names, back when
+ * msc1 used ingenic_mmc.c and both drivers built into the same vmlinux.
+ * Reverted - msc1 is back on sdhci-ingenic.c (disassembling stock's real,
+ * live soc_msc.ko proved that's stock's actual msc1 driver, with its own real
+ * jzmmc_clk_ctrl/jzmmc_manual_detect exports), CONFIG_INGENIC_MMC is fully
+ * disabled again, and ingenic_sdio.c's glue calls these exact literal names. */
 int ingenic_mmc_clk_ctrl(int index, int on);
 int ingenic_mmc_manual_detect(int index, int on);
 #endif  /* __SDHCI_INGENIC_H__ */

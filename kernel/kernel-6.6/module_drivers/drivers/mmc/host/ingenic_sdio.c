@@ -159,3 +159,40 @@ int ingenic_bcmdhd_wlan_power_onoff(int flag)
 
 }
 EXPORT_SYMBOL(ingenic_bcmdhd_wlan_power_onoff);
+
+/* OpenKE (2026-07-22, FIRMWARE.md sec 46): real, live dmesg from stock (this exact
+ * board, this exact chip) shows the SDIO card is NEVER found by a generic eager
+ * rescan at msc1-probe time at all - stock's own soc_msc.ko has msc1_rst=-1,
+ * msc1_pwr=-1 (no power/reset gpio of its own whatsoever). ALL real power
+ * sequencing happens inside cywdhd.ko's own direct gpio_direction_output() calls
+ * (bypassing the devicetree mmc-pwrseq framework entirely), which THEN explicitly
+ * calls this exact function with MANUALLY_INSERT - only then does the card ever
+ * respond. Six real, independently-verified devicetree/driver fixes (correct pin,
+ * correct polarity, freed the pin from uart4's pinmux, a real vmmc-supply
+ * regulator model, the rtc32k clock genuinely enabled, a real clock-register
+ * copy-paste bug fixed) all left mmc1 timing out identically on every generic
+ * rescan attempt (confirmed via live dynamic-debug tracing: real CMD5/CMD55/CMD1
+ * sent at the correct 100kHz, real hardware command timeouts every time) - despite
+ * every individual gpio/clock being independently confirmed correct at the live
+ * register level. This strongly suggests the generic non-removable+pwrseq
+ * auto-rescan path is structurally the wrong trigger for this exact combination -
+ * our own gpio sequencing (wlan_pwrseq + the wifi_bt_power regulator) is already
+ * confirmed electrically correct, so reuse it as-is and just add the one thing
+ * nothing in our build ever did: the explicit manual-insert call stock's own
+ * cywdhd.ko always makes after its own gpio sequencing. late_initcall runs well
+ * after msc1's own probe (and ingenic_sdio_wlan_init(), which sets
+ * wifi_data.sdio_index) has already completed, so our existing pwrseq gpios
+ * should already be settled by the time this fires. */
+static int __init openke_wifi_manual_insert(void)
+{
+	if (wifi_data.sdio_index != 1) {
+		printk("openke_wifi_manual_insert: unexpected sdio_index %d, skipping\n",
+		       wifi_data.sdio_index);
+		return 0;
+	}
+	printk("openke_wifi_manual_insert: triggering manual SDIO insert on mmc%d\n",
+	       wifi_data.sdio_index);
+	ingenic_bcmdhd_wlan_power_onoff(MANUALLY_INSERT);
+	return 0;
+}
+late_initcall(openke_wifi_manual_insert);

@@ -80,6 +80,38 @@
 			   regulator-always-on;
 			   regulator-boot-on;
 		  };
+
+		  /* OpenKE (2026-07-22, FIRMWARE.md sec 44): 3 real GPIO-based fixes in a row
+		   * (wrong pin -> wrong polarity -> pin stolen by uart4's over-wide mux group)
+		   * all left "mmc1: Failed to initialize a non-removable card" byte-identical -
+		   * the card never responds at all, at any frequency. Reconsidered the model
+		   * itself rather than tuning gpio values further: PA01 (wifi_power_on) is a
+		   * shared COMBO-CHIP POWER RAIL per stock's own insmod scripts (soc_msc.sh/
+		   * cywdhd.sh - same gpio referenced by both the mmc host module AND the
+		   * separate wlan chip module), not a per-card reset/wake line the way gpd4
+		   * (WL_REG_ON) is. mmc-pwrseq-simple's reset-gpios models ONE reset concept
+		   * toggled as a single unit with one shared delay - it can't express "this
+		   * rail needs its own independent ramp-up window before the reset line even
+		   * starts toggling". Modeled as its own regulator instead, wired as msc1's
+		   * vmmc-supply - a real, actively-checked property in this exact driver
+		   * (confirmed: ingenic,sdhci already prints "No vmmc regulator found" when
+		   * absent, meaning mmc_regulator_get_supply() is real and already wired into
+		   * this SDHCI-ingenic build, not hypothetical). regulator-always-on +
+		   * -boot-on (same pattern already used by cam_avdd/cam_dvdd/cam_dovdd above)
+		   * gets this GPIO driven to its enabled state at the regulator subsystem's
+		   * own early probe, well before mmc1 ever probes - decoupled from pwrseq's
+		   * post_power_on delay entirely, since a shared rail's real settling time has
+		   * nothing to do with any individual card's reset sequencing. */
+		  wifi_bt_power: wifi_bt_power_regulator {
+			   compatible = "regulator-fixed";
+			   regulator-name = "wifi_bt_power";
+			   regulator-min-microvolt = <3300000>;
+			   regulator-max-microvolt = <3300000>;
+			   gpio = <&gpa 1 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			   enable-active-high;
+			   regulator-always-on;
+			   regulator-boot-on;
+		  };
 };
 
 &uart0 {
@@ -297,36 +329,108 @@
 
 &msc1 {
 	status = "okay";
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 52): reverted back to the base "ingenic,sdhci"
+	 * compatible (sdhci-ingenic.c) - sec 47's "wrong driver entirely" finding was itself
+	 * wrong. Disassembled the real, live, WORKING soc_msc.ko off the stock device (not
+	 * just cywdhd.ko this time) and its own symbol table proves stock's msc1 driver IS
+	 * sdhci-ingenic.c: real sdhci_ingenic_probe/sdhci_ingenic_set_clock/
+	 * sdhci_ingenic_power_set symbols, calling genuine sdhci_add_host()/sdhci_reset(),
+	 * PLUS real exported jzmmc_clk_ctrl/jzmmc_manual_detect symbols - proving this
+	 * driver family DOES support manual detection on stock, contrary to the sec 47
+	 * assumption. Confirmed our own sdhci-ingenic.c already has the matching
+	 * architecture: cd_type==SDHCI_INGENIC_CD_PERMANENT (from the "non-removable"
+	 * property below) sets MMC_CAP_NONREMOVABLE + SDHCI_QUIRK_BROKEN_CARD_DETECTION at
+	 * probe time, and sdhci_ingenic_mmc_manual_detect() (renamed from
+	 * ingenic_mmc_manual_detect in sec 47, exported, in manual_list unconditionally)
+	 * flips SDHCI_DEVICE_DEAD and calls mmc_detect_change() - the real, same mechanism
+	 * stock uses. ingenic_mmc.c (sec 47-51's whole investigation) was never stock's
+	 * actual msc1 driver at all - it's a different, unrelated Ingenic MSC-register-model
+	 * driver that happens to also export functions named jzmmc_manual_detect/
+	 * jzmmc_clk_ctrl, which is what caused the original misdirection once cywdhd.ko's
+	 * disassembly turned up those two names. */
+	compatible = "ingenic,sdhci";
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 44): 4 real fixes to the reset/power gpios
+	 * (wrong pin, wrong polarity, pin stolen by uart4's mux group, wrong power model)
+	 * all left "mmc1: Failed to initialize a non-removable card" byte-identical -
+	 * confirmed via a decompiled build-output .dtb that every one of those fixes DID
+	 * compile in correctly, so the bug was never "did the change apply", something
+	 * else was still missing. rtc32k_enable/rtc32k_disable (x2000-pinctrl.dtsi) mux
+	 * gpe23 to either its real clock-output function (PINCTL_FUNCTION0) or a forced
+	 * GPIO-low state (PINCTL_FUNCLOLVL) - a real, physical 32kHz reference clock
+	 * pin, almost certainly shared with the WiFi/BT combo chip's own sleep clock
+	 * (the vendor's own out-of-tree ingenic_sdio.c has a whole rtc32k_enable()/
+	 * atomic-refcounted mechanism built around this exact pin, called specifically
+	 * from its wlan power-on path - a real, physical precondition, not incidental).
+	 * "default" (pinctrl-0, auto-selected by the driver core with zero driver code
+	 * needed, before sdhci-ingenic's own probe() even runs) had rtc32k_disable
+	 * bundled into it - the clock was being forced OFF automatically at every boot,
+	 * and nothing in this build's mainline brcmfmac path (unlike the vendor's own
+	 * bcmdhd path we deliberately don't use) ever selects the "enable" state
+	 * instead. If the chip genuinely needs this clock running to respond to
+	 * anything at all, this alone would explain zero response regardless of every
+	 * reset/power gpio being individually correct. */
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 48): pinctrl-0 above used to also include
+	 * <&rtc32k_enable> (sec 45's fix for the "clock forced off at boot" theory) - but
+	 * stock's own real reference devicetree (vendor/x2000_kernel, the genuine 4.94 SDK
+	 * source stock was actually built from, as opposed to guessing) has pinctrl-0 =
+	 * <&msc1_4bit> ONLY, with rtc32k_enable/disable used exclusively via the dynamic
+	 * pinctrl-1/pinctrl-2 states, switched at runtime by actual rtc32k_enable()/
+	 * rtc32k_disable() function calls, never forced into the default/boot state. Real,
+	 * source-verified divergence, not a guess - reverted to match. sd-uhs-sdr104 and the
+	 * two "special property" ingenic,*-gpios placeholders below are also copied verbatim
+	 * from that same real reference node for exact fidelity. */
 	pinctrl-names ="default","enable", "disable";
-	pinctrl-0 = <&msc1_4bit> , <&rtc32k_disable>;
+	pinctrl-0 = <&msc1_4bit>;
 	pinctrl-1 = <&rtc32k_enable>;
 	pinctrl-2 = <&rtc32k_disable>;
 
+	sd-uhs-sdr104;
 	cap-mmc-highspeed;
 	max-frequency = <100000000>;
 	bus-width = <4>;
 	voltage-ranges = <1800 3300>;
 	non-removable;
+	vmmc-supply = <&wifi_bt_power>;
 
 	ingenic,sdio_clk = <1>;
 	keep-power-in-suspend;
+	ingenic,sdr-gpios = <0>;
+	ingenic,rst-gpios = <0>;
 	ingenic,removal-manual;
 
-	/* mainline brcmfmac wiring, added alongside the vendor's own bcmdhd_wlan node below
-	 * (left in place, inert, in case that driver is ever reconsidered instead). Real chip
-	 * confirmed live on the actual printer: Cypress CYW43438, SDIO, vendor:device 02D0:A9A6
-	 * (see FIRMWARE.md sec 6). WL_REG_ON is the same physical GPIO the vendor node already
-	 * names (gpd 1) - reset-gpios is ACTIVE_LOW here because mmc-pwrseq-simple's "reset"
-	 * semantics are inverted from the vendor's own "reg_on" naming (asserted=held-off,
-	 * matching the same real-world convention used for this exact class of chip on e.g.
-	 * Raspberry Pi's own device tree) - not independently hardware-verified, flagged as a
-	 * real assumption to confirm once this actually boots. */
+	/* OpenKE (2026-07-21, FIRMWARE.md sec 44): gpd 1 / gpd 0 below were WRONG - not a
+	 * guess, a confirmed hardware fact. Extracted stock's own out-of-tree module-loading
+	 * scripts (module_driver/soc_msc.sh, cywdhd.sh) from a real full-disk backup
+	 * (nebula_system_backup.bin's rootfs partition) and read the vendor's own insmod
+	 * parameters verbatim: wifi_reg_on=PD04 (port D pin 4, NOT pin 1), and
+	 * gpio_wlan_wake_host=PE02 (port E pin 2) - independently cross-confirmed against
+	 * this exact board's own stock-boot-reference-log.txt line
+	 * "[clooney]dhd_init_gpio_wlan_hostwake: WL_HOST_WAKE=130" (port E is the 5th gpio
+	 * chip, index 4: 4*32+2 = 130, exact match). There is also a THIRD gpio these scripts
+	 * reference that had no equivalent anywhere in this file at all: wifi_power_on /
+	 * gpio_bt_wifi_power = PA01 (port A pin 1), a separate shared power-rail enable for
+	 * the combo chip.
+	 *
+	 * OpenKE (2026-07-22): pin numbers alone (real-hardware tested) did NOT fix WiFi -
+	 * identical "Failed to initialize a non-removable card" persisted. Root cause: the
+	 * active-flag polarity below was backwards. Traced drivers/mmc/core/pwrseq_simple.c's
+	 * actual logical sequence: pre_power_on() sets the gpio array to logical 1 (asserted/
+	 * held-off), post_power_on() sets logical 0 (released) THEN sleeps - the chip is
+	 * expected to be truly enabled at logical-0, since that's the state held throughout
+	 * actual SDIO enumeration. GPIO_ACTIVE_HIGH means logical value == physical level
+	 * (no inversion); GPIO_ACTIVE_LOW inverts. The vendor's own insmod params give the
+	 * real enable level per pin: wifi_reg_on_level=0 (gpd 4 enables at physical LOW) and
+	 * wifi_power_on_level=1 (gpa 1 enables at physical HIGH). For logical-0
+	 * (post_power_on/enumeration-time) to land on the real enable level: gpd 4 needs
+	 * logical0->physicalLOW, which is GPIO_ACTIVE_HIGH (not LOW); gpa 1 needs
+	 * logical0->physicalHIGH, which is GPIO_ACTIVE_LOW (not HIGH). Both were assigned
+	 * exactly backwards below. */
 	mmc-pwrseq = <&wlan_pwrseq>;
 
 	bcmdhd_wlan: bcmdhd_wlan {
 		 compatible = "android,bcmdhd_wlan";
-		 gpio_wl_reg_on = <&gpd 1 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
-		 gpio_wl_host_wake = <&gpd 0 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		 gpio_wl_reg_on = <&gpd 4 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+		 gpio_wl_host_wake = <&gpe 2 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 	};
 };
 
@@ -337,21 +441,49 @@
 		 * controller binding is #gpio-cells = <3> (pin, active flag, ingenic bias flag,
 		 * matching every other &gpd/&gpc/etc reference in this file), but this line only
 		 * ever had 2, causing a real, confirmed "OF: /wlan_pwrseq: #gpio-cells = 3 found 2"
-		 * kernel warning at boot - the same physical pin (gpd 1) is referenced correctly
-		 * with all 3 cells two lines up in gpio_wl_reg_on. Real, live-confirmed root cause
-		 * of mmc1 (the WiFi SDIO card) failing "Failed to initialize a non-removable card"
-		 * every boot - this pwrseq node is what's supposed to toggle the chip's reset/
-		 * power-on line before the SDIO core ever tries to enumerate it. */
-		reset-gpios = <&gpd 1 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+		 * kernel warning at boot. Fixed (gone on re-test), but that was never the actual
+		 * blocker - see the sec 44 comment above &msc1's mmc-pwrseq line: gpd 1 wasn't
+		 * even the right pin (real pin per stock's own insmod scripts: gpd 4/PD04,
+		 * WL_REG_ON). Two more real-hardware-tested attempts after that - active-flag
+		 * polarity (GPIO_ACTIVE_HIGH here so logical-0/post_power_on lands on the
+		 * vendor's real physical-LOW enable level, wifi_reg_on_level=0) - both left the
+		 * symptom byte-identical.
+		 *
+		 * OpenKE (2026-07-22): gpa 1 (PA01, the combo chip's SHARED power rail) used
+		 * to be toggled together with gpd 4 in this same array - moved out entirely,
+		 * now modeled as its own regulator-fixed (wifi_bt_power, near the cam_*vdd
+		 * regulators earlier in this file) wired as &msc1's vmmc-supply instead. A
+		 * shared rail's real settling time has nothing to do with any one card's
+		 * reset sequencing, and this array can only express one shared-delay concept
+		 * for every gpio in it together - it can't stage "rail up first, with its own
+		 * real ramp-up window, THEN toggle reset". */
+		/* OpenKE (2026-07-22, FIRMWARE.md sec 48): stock's real reference devicetree
+		 * (vendor/x2000_kernel, genuine 4.94 SDK source) has a SEPARATE, dedicated combo-
+		 * chip reset line in its msc1 node - "ingenic,sdio-reset = <&gpd 1
+		 * GPIO_ACTIVE_LOW ...>" - distinct from WL_REG_ON (gpd 4, the power-enable pin
+		 * already modeled below, real per the insmod-script extraction in sec 44). That
+		 * vendor property is parsed directly by their own out-of-tree cywdhd.ko, which we
+		 * don't use, so nothing in our tree has ever read or toggled gpd 1 at all - it's
+		 * been left floating since every prior attempt. If this is the combo chip's real
+		 * SDIO-interface reset (as opposed to WL_REG_ON's regulator/power-rail enable),
+		 * leaving it unasserted-but-undriven could hold the chip's SDIO block in an
+		 * indeterminate or asserted-reset state regardless of every host-side clock/
+		 * command register being correct - which would exactly match the current
+		 * symptom (host sends real CMD0/CMD8/CMD5/CMD55, STAT never leaves 0x00000000,
+		 * no interrupt ever fires: the host is fine, nothing is answering). mmc-pwrseq-
+		 * simple's reset-gpios binding accepts an array - every gpio in it is asserted
+		 * together in pre_power_on() and released together in post_power_on() - so gpd 1
+		 * joins gpd 4 here rather than needing new driver code, since both want the same
+		 * "released once power/clock is stable" timing (unlike gpa1's shared-rail-
+		 * settling case in the sec 46 comment above, which needed independent timing and
+		 * was deliberately split out into its own regulator instead). */
+		reset-gpios = <&gpd 4 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>,
+			      <&gpd 1 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 		/* OpenKE (2026-07-21, FIRMWARE.md sec 40): the gpio-cells fix above is real and
-		 * confirmed (the kernel warning is gone on a live re-test), but mmc1 still failed
-		 * to initialize afterward - drivers/mmc/core/pwrseq_simple.c's own
-		 * post_power_on_delay_ms defaults to 0 when this property is absent (it was never
-		 * set here at all), meaning the SDIO core was probing the chip with zero delay
-		 * after reset release. Real, common failure mode for WiFi/BT combo chips (the CYW43438
-		 * here) that need real time to boot/stabilize before responding to SDIO commands.
-		 * 200ms is a generously safe value for this chip class - untested against real
-		 * hardware as of writing this comment, next boot test will confirm either way. */
+		 * confirmed (the kernel warning is gone on a live re-test). 200ms is a
+		 * generously safe stabilization delay for this chip class (real, common
+		 * failure mode for WiFi/BT combo chips that need time to boot before
+		 * responding to SDIO commands), applied after post_power_on releases reset. */
 		post-power-on-delay-ms = <200>;
 	};
 };

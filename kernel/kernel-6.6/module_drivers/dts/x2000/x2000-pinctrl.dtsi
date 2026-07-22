@@ -34,7 +34,24 @@
 
 	uart4_pin: uart4-pin {
 		uart4_pa: uart4-pa {
-			ingenic,pinmux = <&gpa 0 3>;
+			/* OpenKE (2026-07-22, FIRMWARE.md sec 44): was <&gpa 0 3> (pins 0-3, ALL
+			 * FOUR muxed to UART4 as one atomic ingenic,pinmux group -
+			 * pinctrl-ingenic.c's pin_bitmap(from,to) is an inclusive range, so this
+			 * silently claimed PA0/PA1 too, even though UART4 only uses PA2 (RX) and
+			 * PA3 (TX)). Confirmed wrong against stock's own live device tree
+			 * (/sys/firmware/fdt, decompiled): its own uart4-pa group is
+			 * "ingenic,pinmux = <0x08 0x02 0x03>" - pins 2-3 ONLY. This template's
+			 * over-wide group was a real, previously-invisible bug: our active serial
+			 * debug console (uart4, always on) was permanently mux-claiming PA1, the
+			 * exact pin WiFi's combo-chip power-rail enable needs (see &msc1's
+			 * wlan_pwrseq comments) - explains why toggling that gpio had zero
+			 * physical effect on real hardware regardless of active-flag polarity,
+			 * with no error printed anywhere (this is a silent mux-claim via a
+			 * different pinctrl group, not the loud "already requested" conflict
+			 * pinctrl-ingenic.c prints for two uart/i2c pinctrl groups fighting over
+			 * the same named group). Narrowed to match stock exactly - UART4 keeps
+			 * working (RX/TX unaffected), PA0/PA1 are free again. */
+			ingenic,pinmux = <&gpa 2 3>;
 			ingenic,pinmux-funcsel = <PINCTL_FUNCTION1>;
 		};
 		uart4_pc: uart4-pc {

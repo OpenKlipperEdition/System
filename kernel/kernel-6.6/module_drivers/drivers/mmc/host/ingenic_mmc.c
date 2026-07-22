@@ -20,9 +20,10 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
-#include <asm-generic/delay.h>
+#include <linux/delay.h>
 
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -75,6 +76,7 @@ static LIST_HEAD(manual_list);
 static void ingenic_mmc_dump_reg(struct ingenic_mmc_host *host)
 {
 	dev_info(host->dev, "\nREG dump:\n"
+	         "\tCTRL\t= 0x%08X\n"
 	         "\tCTRL2\t= 0x%08X\n"
 	         "\tSTAT\t= 0x%08X\n"
 	         "\tCLKRT\t= 0x%08X\n"
@@ -98,6 +100,7 @@ static void ingenic_mmc_dump_reg(struct ingenic_mmc_host *host)
 	         "\tRTCNT\t= 0x%08X\n"
 	         "\tDEBUG\t= 0x%08X\n",
 
+	         msc_readl(host, CTRL),
 	         msc_readl(host, CTRL2),
 	         msc_readl(host, STAT),
 	         msc_readl(host, CLKRT),
@@ -122,6 +125,72 @@ static void ingenic_mmc_dump_reg(struct ingenic_mmc_host *host)
 	         msc_readl(host, DEBUG));
 }
 #endif
+
+/*
+ * OpenKE (2026-07-22, FIRMWARE.md sec 49/50): real X2000 CPM register offsets
+ * from arch/mips/xburst2/soc-x2000/include/soc/cpm.h (CPM_IOBASE=0x10000000,
+ * CPM_MSC0CDR=0x68, CPM_MSC1CDR=0xa4, CPM_CLKGR=0x20, CPM_MPDCR=0xf8) and bit
+ * positions from module_drivers/drivers/clk/ingenic-v2/clk-x2000.c's clock
+ * table: DIV(CLK_DIV_MSC0/1, ..., CPM_MSC{0,1}CDR, 8, 0, ...) expands to
+ * divider in bits[7:0], stop=27, busy=28, change-enable=29, mux=[31:30] (same
+ * bit positions for both channels, just different registers - symmetric, not
+ * itself a divergence). GATE(CLK_GATE_MSC0, ..., CPM_CLKGR, 4, ...) / GATE_
+ * MSC1 bit 5. POWER(PD_MEM_MSC0, ..., CPM_MPDCR, 21, 0, ...) / PD_MEM_MSC1
+ * control bit 22, both sharing wait/status bit 0 - a genuinely separate
+ * power-domain gate below the plain clock gate. Both GATE and POWER use
+ * CLK_GATE_SET_TO_DISABLE (confirmed in power-gate.c's power_gate_endisable:
+ * "enable=1, set2dis=1 -> clear bit"), so bit=0 means enabled/powered here,
+ * not bit=1 - inverted from a naive reading.
+ *
+ * Neither our ingenic_mmc.c port nor the real stock 4.4.94 driver/devicetree
+ * (grepped, zero hits in either) ever requests a "pd_mem_msc0"/"pd_mem_msc1"
+ * clock by name - this whole power-domain layer is unmanaged by any mmc
+ * consumer on both kernels, so whatever state it's in after boot is whatever
+ * the bootloader/SPL/hardware POR left it at. msc0 works, so pd_mem_msc0's
+ * bit must already land enabled without Linux touching it - this dump
+ * exists to show directly, with real register evidence, whether pd_mem_msc1
+ * (a different physical bit in the same register) lands in the same state
+ * or not, rather than guessing either way.
+ */
+#define CPM_DIAG_PHYS_BASE  0x10000000
+#define CPM_DIAG_MSC0CDR    0x68
+#define CPM_DIAG_MSC1CDR    0xa4
+#define CPM_DIAG_CLKGR      0x20
+#define CPM_DIAG_MPDCR      0xf8
+
+static void __iomem *cpm_diag_base;
+
+static void ingenic_mmc_dump_cpm(struct ingenic_mmc_host *host)
+{
+	u32 msc0cdr, msc1cdr, clkgr, mpdcr;
+
+	if (!cpm_diag_base) {
+		cpm_diag_base = ioremap(CPM_DIAG_PHYS_BASE, 0x1000);
+		if (!cpm_diag_base) {
+			dev_err(host->dev, "MSC-CPM-DIAG: ioremap of CPM failed\n");
+			return;
+		}
+	}
+
+	msc0cdr = readl(cpm_diag_base + CPM_DIAG_MSC0CDR);
+	msc1cdr = readl(cpm_diag_base + CPM_DIAG_MSC1CDR);
+	clkgr   = readl(cpm_diag_base + CPM_DIAG_CLKGR);
+	mpdcr   = readl(cpm_diag_base + CPM_DIAG_MPDCR);
+
+	dev_info(host->dev, "MSC-CPM-DIAG:\n"
+	         "  MSC0 div=%u mux=%u busy=%u stop=%u ce=%u gate_en=%u(rawbit%u) pd_en=%u(rawbit%u) pd_stat_bit0=%u\n"
+	         "  MSC1 div=%u mux=%u busy=%u stop=%u ce=%u gate_en=%u(rawbit%u) pd_en=%u(rawbit%u) pd_stat_bit0=%u\n"
+	         "  (raw regs: MSC0CDR=0x%08X MSC1CDR=0x%08X CLKGR=0x%08X MPDCR=0x%08X)\n",
+	         msc0cdr & 0xff, (msc0cdr >> 30) & 0x3, (msc0cdr >> 28) & 1,
+	         (msc0cdr >> 27) & 1, (msc0cdr >> 29) & 1,
+	         !((clkgr >> 4) & 1), (clkgr >> 4) & 1,
+	         !((mpdcr >> 21) & 1), (mpdcr >> 21) & 1, mpdcr & 1,
+	         msc1cdr & 0xff, (msc1cdr >> 30) & 0x3, (msc1cdr >> 28) & 1,
+	         (msc1cdr >> 27) & 1, (msc1cdr >> 29) & 1,
+	         !((clkgr >> 5) & 1), (clkgr >> 5) & 1,
+	         !((mpdcr >> 22) & 1), (mpdcr >> 22) & 1, mpdcr & 1,
+	         msc0cdr, msc1cdr, clkgr, mpdcr);
+}
 
 /*
  * Functional functions.
@@ -179,6 +248,51 @@ static inline void ingenic_mmc_reset(struct ingenic_mmc_host *host)
 	msc_writel(host, IFLG, 0xffffffff);
 
 	msc_writel(host, CLKRT, clkrt);
+}
+
+/*
+ * OpenKE (2026-07-22, FIRMWARE.md sec 51): STAT_CLK_EN (bit 8) is the MSC
+ * controller's own internal SD/MMC clock-running indicator, distinct from
+ * the external clk_cgu/clk_gate Linux clock-framework state already proven
+ * valid (MSC1-CLK-DIAG) and distinct from the CPM power-domain/gate bits
+ * already proven identical to MSC0 (MSC-CPM-DIAG). ingenic_mmc_reset() above
+ * writes CTRL_CLOCK_START (0x2, a 2-bit field at CTRL bits[1:0]) once,
+ * conditioned on pdata->sdio_clk - but every request-timeout register dump
+ * collected so far shows CTRL=0x00000004 (CTRL_START_OP only, bits[1:0]=00)
+ * at the moment of failure, never CTRL_CLOCK_START(0x2) or (0x2|0x4)
+ * together. ingenic_mmc_command_start() does "msc_writel(host, CTRL,
+ * CTRL_START_OP)" as a plain, non-OR'd overwrite - if the internal clock's
+ * running state depends on bits[1:0] staying at the CLOCK_START encoding,
+ * this single write would zero them out the instant any real command is
+ * submitted, regardless of what reset had set up. This function checks the
+ * directly falsifiable question: does STAT_CLK_EN ever actually become set
+ * at all, immediately after reset+clock-start and before any command is
+ * ever submitted. Bounded to 1000 x 1us = 1ms, matching the task's "use
+ * bounded polling, do not wait seconds" requirement.
+ */
+static int msc_wait_internal_clock(struct ingenic_mmc_host *host)
+{
+	u32 stat;
+	int i;
+
+	for (i = 0; i < 1000; i++) {
+		stat = msc_readl(host, STAT);
+
+		if (stat & STAT_CLK_EN) {
+			dev_err(host->dev,
+			        "MSC1-DIAG: internal clock started CTRL=%08x STAT=%08x (after %dus)\n",
+			        msc_readl(host, CTRL), stat, i);
+			return 0;
+		}
+
+		udelay(1);
+	}
+
+	dev_err(host->dev,
+	        "MSC1-DIAG: internal clock failed CTRL=%08x STAT=%08x\n",
+	        msc_readl(host, CTRL), msc_readl(host, STAT));
+
+	return -ETIMEDOUT;
 }
 
 static inline void ingenic_mmc_stop_dma(struct ingenic_mmc_host *host)
@@ -792,6 +906,22 @@ static void ingenic_mmc_command_start(struct ingenic_mmc_host *host, struct mmc_
 	unsigned long cmdat = 0;
 	unsigned long imsk;
 
+	/*
+	 * OpenKE (2026-07-22, FIRMWARE.md sec 52): the STAT_CLK_EN pre-command
+	 * gate (sec 51) is REMOVED - real, live register reads off the working
+	 * stock reference disproved the assumption behind it. A fully
+	 * associated, actively-transferring stock system reads STAT=0x00007080
+	 * (bit 8 clear), and immediately after stock's own soc_msc.ko reset
+	 * runs, CTRL=0/STAT=0 too - yet stock proceeds to working Wi-Fi right
+	 * after both. STAT_CLK_EN is not a valid "is the internal clock
+	 * running" signal on this MSC revision (transient, wrongly defined
+	 * for this hardware, or simply not what bit 8 means here) - gating
+	 * every command on it, as sec 51 did, guarantees failure regardless
+	 * of whether the rest of the controller is fine. Bounded retries and
+	 * the request-timeout/CPM/clock diagnostics from sec 49/50 stay in
+	 * place; only this specific gate is removed.
+	 */
+
 	if (cmd->flags & MMC_RSP_BUSY) {
 		cmdat |= CMDAT_BUSY;
 	}
@@ -891,11 +1021,27 @@ static void ingenic_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 }
 
+/*
+ * OpenKE (2026-07-22, FIRMWARE.md sec 49): stock's ladder let this reschedule
+ * up to 20 times (real 60s per request) before ever calling mmc_request_done()
+ * - harmless on working hardware, but during msc1 diagnostic passes (STAT
+ * stuck at 0, every CMD0/CMD8/CMD5/CMD55 attempt times out) each request now
+ * burns a full 60 real seconds, and the SDIO/core layers above retry several
+ * commands in sequence - stacking into minutes per boot and, per the earlier
+ * real reboot-hang incident, widening the window during which mmc core's own
+ * detect work can still be legitimately "running" (blocking device_shutdown's
+ * flush_work) when a reboot is requested. Bounded to exactly one reschedule
+ * (one diagnostic warn at 3s, completed with -ENOMEDIUM at 6s) for this
+ * diagnostic pass - not a hardware-timing change, purely how long this driver
+ * waits before giving up and handing the error back to the core.
+ */
+#define REQUEST_DIAG_MAX_RETRY 1
+
 static void ingenic_mmc_request_timeout(struct timer_list *t)
 {
 	struct ingenic_mmc_host *host = from_timer(host, t, request_timer);
 	unsigned int status = msc_readl(host, STAT);
-	if (host->timeout_cnt++ < (3000 / TIMEOUT_PERIOD)) {
+	if (host->timeout_cnt++ < REQUEST_DIAG_MAX_RETRY) {
 		dev_warn(host->dev, "timeout %dms op:%d %s sz:%d state:%d "
 		         "STAT:0x%08X DMALEN:0x%08X blks:%d/%d clk:%s\n",
 		         host->timeout_cnt * TIMEOUT_PERIOD,
@@ -913,11 +1059,6 @@ static void ingenic_mmc_request_timeout(struct timer_list *t)
 		mod_timer(&host->request_timer, jiffies +
 		          msecs_to_jiffies(TIMEOUT_PERIOD));
 		return;
-
-	} else if (host->timeout_cnt++ < (60000 / TIMEOUT_PERIOD)) {
-		mod_timer(&host->request_timer, jiffies +
-		          msecs_to_jiffies(TIMEOUT_PERIOD));
-		return;
 	}
 
 	dev_err(host->dev, "request time out, op=%d arg=0x%08X, "
@@ -927,6 +1068,7 @@ static void ingenic_mmc_request_timeout(struct timer_list *t)
 	        host->state, status, (u32)host->pending_events,
 	        host->data ? host->data->sg_len : 0);
 	ingenic_mmc_dump_reg(host);
+	ingenic_mmc_dump_cpm(host);
 
 	if (host->data) {
 		int i;
@@ -943,6 +1085,7 @@ static void ingenic_mmc_request_timeout(struct timer_list *t)
 		if (request_need_stop(host->mrq)) {
 			send_stop_command(host);
 		}
+		dev_err(host->dev, "MSC1-DIAG: request failed, retries exhausted, completing request\n");
 		host->cmd->error = -ENOMEDIUM;
 		host->state = STATE_IDLE;
 		mmc_request_done(host->mmc, host->mrq);
@@ -1438,7 +1581,17 @@ static int __init ingenic_mmc_dma_init(struct ingenic_mmc_host *host)
 
 static int __init ingenic_mmc_msc_init(struct ingenic_mmc_host *host)
 {
+	dev_err(host->dev,
+	        "MSC1-DIAG: sdio_clk=%u removal=%u CTRL=%08x STAT=%08x (before reset)\n",
+	        host->pdata->sdio_clk, host->pdata->removal,
+	        msc_readl(host, CTRL), msc_readl(host, STAT));
+
 	ingenic_mmc_reset(host);
+
+	if (host->pdata->sdio_clk) {
+		msc_wait_internal_clock(host);
+	}
+
 	host->cmdat_def = CMDAT_RTRG_EQUALT_16 | CMDAT_TTRG_LESS_16 |   \
 	                  CMDAT_BUS_WIDTH_1BIT;
 
@@ -1636,23 +1789,44 @@ static int mmc_ingenic_probe(struct platform_device *pdev)
 	pdev->id = of_alias_get_id(pdev->dev.of_node, "mmc");
 	host->index = pdev->id;
 	priv->get_clk_name(host->index, clk_cgu_name, clk_gate_name);
+	/*
+	 * OpenKE (2026-07-22, FIRMWARE.md sec 50): "if (!host->clk_cgu)" below
+	 * (and the clk_gate copy) is a real bug present identically in stock's
+	 * own 4.4.94 source (vendor/x2000_kernel/drivers/mmc/host/ingenic_mmc.c
+	 * line 1616/1622) - devm_clk_get() returns ERR_PTR() on failure, never
+	 * NULL, so a genuinely failed clock lookup is a small non-NULL pointer
+	 * that sails straight past this check. The dev_err below never fires
+	 * either way, so its absence from dmesg on msc1 proves nothing about
+	 * whether these clocks are real. Harmless on stock only because its
+	 * clk_get() calls happen to never fail there. Fixed to IS_ERR() so a
+	 * real failure is no longer silently fed into clk_set_rate()/
+	 * clk_prepare_enable() below. Logging added per the same requirement:
+	 * "Do not ignore error pointers or failed clock operations."
+	 */
 	host->clk_cgu = devm_clk_get(&pdev->dev, clk_cgu_name);
-	if (!host->clk_cgu) {
+	if (IS_ERR(host->clk_cgu)) {
 		dev_err(&pdev->dev, "Failed to Get MSC clk!\n");
 		return PTR_ERR(host->clk_cgu);
 	}
 	host->clk_gate = devm_clk_get(&pdev->dev, clk_gate_name);
-	if (!host->clk_gate) {
+	if (IS_ERR(host->clk_gate)) {
 		dev_err(&pdev->dev, "Failed to Get PWC MSC clk!\n");
 		return PTR_ERR(host->clk_gate);
 	}
+	dev_info(&pdev->dev, "MSC%d-CLK-DIAG: clk_cgu(\"%s\")=%p rate=%lu clk_gate(\"%s\")=%p rate=%lu\n",
+	         host->index, clk_cgu_name, host->clk_cgu, clk_get_rate(host->clk_cgu),
+	         clk_gate_name, host->clk_gate, clk_get_rate(host->clk_gate));
 
 	clk_set_rate(host->clk_cgu, CLK_RATE);
 	if (clk_get_rate(host->clk_cgu) > CLK_RATE) {
 		dev_err(&pdev->dev, "Failed to Set MSC clk %ld!\n", clk_get_rate(host->clk_cgu));
 		goto err_clk_get_rate;
 	}
+	dev_info(&pdev->dev, "MSC%d-CLK-DIAG: after clk_set_rate(%d) -> cgu rate=%lu\n",
+	         host->index, CLK_RATE, clk_get_rate(host->clk_cgu));
 	ingenic_mmc_clk_onoff(host, 1);
+	dev_info(&pdev->dev, "MSC%d-CLK-DIAG: after clk_onoff(1): cgu enabled=%d gate enabled=%d\n",
+	         host->index, __clk_is_enabled(host->clk_cgu), __clk_is_enabled(host->clk_gate));
 
 	host->dev = &pdev->dev;
 	host->pdata = pdata;
@@ -1715,6 +1889,12 @@ static int mmc_ingenic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	dev_info(host->dev, "register success!\n");
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 50): baseline CPM snapshot right
+	 * after this instance's own reset/IRQ-request completed in
+	 * ingenic_mmc_msc_init() above - fires once per instance (msc0, msc1),
+	 * giving a same-lifecycle-point comparison between the two before any
+	 * command is ever attempted. */
+	ingenic_mmc_dump_cpm(host);
 	return 0;
 
 err_sysfs_create:
@@ -1738,6 +1918,16 @@ err_clk_get_rate:
 static int __exit mmc_ingenic_remove(struct platform_device *pdev)
 {
 	struct ingenic_mmc_host *host = platform_get_drvdata(pdev);
+
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 49): neither timer was ever
+	 * cancelled here before kfree(host) below - a still-armed request_timer
+	 * or detect_timer firing after free is a real use-after-free, and
+	 * leaving them armed at all during remove/shutdown is exactly the
+	 * "schedule new retry work after shutdown begins" case that must not
+	 * happen. Safe to call unconditionally even when a timer was never
+	 * armed (msc1's MANUAL removal mode never arms detect_timer at all). */
+	del_timer_sync(&host->request_timer);
+	del_timer_sync(&host->detect_timer);
 
 	platform_set_drvdata(pdev, NULL);
 	mmc_remove_host(host->mmc);
@@ -1774,6 +1964,15 @@ static void mmc_ingenic_shutdown(struct platform_device *pdev)
 	 * can't handle bus remove correctly.
 	 */
 	dev_vdbg(host->dev, "shutdown\n");
+	/* OpenKE (2026-07-22, FIRMWARE.md sec 49): done first, unconditionally -
+	 * host->mmc->card is NULL for the entire failure mode this diagnostic
+	 * pass is investigating (SDIO enumeration never completes far enough to
+	 * allocate a card), so the branch below never ran and never cancelled
+	 * anything. Cancelling both timers before any other shutdown logic
+	 * guarantees no new retry gets scheduled once shutdown has begun,
+	 * regardless of which branch below does or doesn't execute. */
+	del_timer_sync(&host->request_timer);
+	del_timer_sync(&host->detect_timer);
 	if (host->mmc->card && !mmc_card_sdio(host->mmc->card)) {
 		if (card_gpio->rst) {
 			gpiod_set_value(card_gpio->rst, 0);

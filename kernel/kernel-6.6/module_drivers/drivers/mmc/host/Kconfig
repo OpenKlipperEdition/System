@@ -24,7 +24,7 @@ config MMC_INDEX_MATCH_CONTROLLER
 
  config INGENIC_MMC
          tristate "Ingenic(XBurst)  MMC/SD Card Controller(MSC) support"
-         depends on SOC_X1600 || SOC_X1000 || SOC_X1800 || SOC_X1021 || SOC_X1520 || SOC_X1630
+         depends on SOC_X1600 || SOC_X1000 || SOC_X1800 || SOC_X1021 || SOC_X1520 || SOC_X1630 || SOC_X2000
          help
            This selects the Ingenic XBurst SD/MMC Card Controller.
            If you have platform with a SD/Multimedia Card slot and compact

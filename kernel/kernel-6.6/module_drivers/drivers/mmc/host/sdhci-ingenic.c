@@ -19,6 +19,15 @@
 #include "sdhci.h"
 #include "sdhci-ingenic.h"
 
+/* OpenKE (2026-07-22, FIRMWARE.md sec 46): mmc_power_up()/mmc_power_off() are real,
+ * non-static, built-in (CONFIG_MMC=y) mmc-core functions - just declared in the
+ * core subsystem's own *private* drivers/mmc/core/core.h, not the public
+ * include/linux/mmc/core.h, so they need a manual extern here rather than an
+ * include. No EXPORT_SYMBOL needed since this driver is built directly into
+ * vmlinux (CONFIG_MMC_SDHCI_INGENIC=y), not a loadable module. */
+extern void mmc_power_up(struct mmc_host *host, u32 ocr);
+extern void mmc_power_off(struct mmc_host *host);
+
 #define CLK_CTRL
 /* Software redefinition caps */
 #define CAPABILITIES1_SW    0x276dc898
@@ -140,7 +149,23 @@ static void sdhci_ingenic_set_clock(struct sdhci_host *host, unsigned int clock)
 		clk_set_parent(sdhci_ing->clk_mux, sdhci_ing->clk_mpll);
 	} else {
 		clk_set_parent(sdhci_ing->clk_mux, sdhci_ing->clk_ext);
-		*(volatile unsigned int *)0xB0000068 |= 1 << 21;
+		/* OpenKE (2026-07-22, FIRMWARE.md sec 44): real vendor-source copy-paste bug,
+		 * not a devicetree issue - this unconditionally hit MSC0's own clock control
+		 * register (0xB0000068 == CPM_MSC0_CLK_R, #define'd above) regardless of which
+		 * controller instance is actually being clocked, even though the correct,
+		 * per-instance register address was already computed two lines above via
+		 * sdhci_ingenic_get_cpm_msc(host) into `cpm_msc` and then never used here. This
+		 * runs on every low-speed (<=400kHz) clock setup - i.e. every single card
+		 * identification attempt, on every controller. MSC0 (eMMC) incidentally still
+		 * worked since it's the one actually being hit; MSC1 (this board's WiFi SDIO)
+		 * silently never got its own register write, on top of five other real,
+		 * independently-verified fixes (gpio pin, polarity, uart4 pin-mux conflict,
+		 * vmmc-supply power model, rtc32k clock enable) that all left "mmc1: Failed to
+		 * initialize a non-removable card" completely unchanged - this is the first
+		 * candidate that could explain the SDIO clock line itself never toggling
+		 * correctly at the hardware level, independent of every gpio/power fix tried
+		 * so far. */
+		*(volatile unsigned int *)cpm_msc |= 1 << 21;
 	}
 
 	clk_set_rate(sdhci_ing->clk_cgu, clock);
@@ -288,7 +313,17 @@ static inline void ingenic_mmc_clk_onoff(struct sdhci_ingenic *ingenic_ing, unsi
  *
  *  This functions will be called by manually card-detect driver such as
  *  wifi. To enable this mode you can set value pdata.removal = MANUAL.
- */
+ *
+ *  OpenKE (2026-07-22, FIRMWARE.md sec 52): sec 47 briefly renamed this to
+ *  sdhci_ingenic_mmc_manual_detect to dodge a link collision with
+ *  ingenic_mmc.c's own function of this name, when msc1 was (wrongly)
+ *  switched to that driver. Reverted - disassembling stock's real, live
+ *  soc_msc.ko proved stock's actual msc1 driver is this file (sdhci-ingenic.c),
+ *  with its own genuine jzmmc_clk_ctrl/jzmmc_manual_detect exports; ingenic_mmc.c
+ *  was never stock's msc1 driver, just a separate, unrelated driver that
+ *  happens to define functions with the same names. CONFIG_INGENIC_MMC is
+ *  disabled again, so this is the only definition in the tree once more, and
+ *  ingenic_sdio.c's manual-insert glue calls it by this exact literal name. */
 int ingenic_mmc_manual_detect(int index, int on)
 {
 	struct sdhci_ingenic *sdhci_ing;
@@ -314,6 +349,26 @@ int ingenic_mmc_manual_detect(int index, int on)
 	if (on) {
 		dev_err(&sdhci_ing->pdev->dev, "card insert manually\n");
 		set_bit(INGENIC_MMC_CARD_PRESENT, &sdhci_ing->flags);
+		/* OpenKE (2026-07-22, FIRMWARE.md sec 46): mmc_add_host()'s own
+		 * mmc_start_host() ALREADY did one automatic mmc_power_up()+rescan for
+		 * every mmc host unconditionally (real, mainline drivers/mmc/core/
+		 * core.c behavior, independent of non-removable/cd_type) - that's the
+		 * "Failed to initialize" seen at probe time, before this function ever
+		 * runs. Calling mmc_detect_change() alone below re-triggers a rescan
+		 * against gpios that are already sitting at whatever level that first,
+		 * automatic cycle left them at - no new edge happens. If the real chip
+		 * needs an actual transition (not just a static level) at the moment
+		 * of the real power-on, a bare re-rescan can never produce one. Force
+		 * a real power-cycle - off, real settle time, on again via our own
+		 * already-hardware-verified-correct pwrseq (wlan_pwrseq: gpd4 reset
+		 * line + the wifi_bt_power regulator via vmmc-supply) - immediately
+		 * before detection, so the actual reset/enable line gets a genuine
+		 * fresh transition right here, not stale state from minutes/seconds
+		 * earlier at a completely different point in boot.
+		 * earlier at a completely different point in boot. */
+		mmc_power_off(host->mmc);
+		msleep(50);
+		mmc_power_up(host->mmc, host->mmc->ocr_avail);
 #ifdef CLK_CTRL
 		ingenic_mmc_clk_onoff(sdhci_ing, 1);
 #endif
@@ -340,7 +395,12 @@ EXPORT_SYMBOL(ingenic_mmc_manual_detect);
  *  ingenic_mmc_clk_ctrl - enable or disable msc clock gate
  *  @index: host->index, namely the index of the controller.
  *  @on: 1-enable msc clock gate, 0-disable msc clock gate.
- */
+ *
+ *  OpenKE (2026-07-22, FIRMWARE.md sec 52): reverted for the same reason as
+ *  ingenic_mmc_manual_detect above - msc1 is back on this driver, and
+ *  CONFIG_INGENIC_MMC is disabled again, so the sec 47 rename that dodged a
+ *  collision with ingenic_mmc.c's own ingenic_mmc_clk_ctrl is no longer
+ *  needed. */
 int ingenic_mmc_clk_ctrl(int index, int on)
 {
 	struct sdhci_ingenic *sdhci_ing;
