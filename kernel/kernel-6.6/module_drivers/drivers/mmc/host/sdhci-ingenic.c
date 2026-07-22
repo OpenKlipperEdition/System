@@ -11,6 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/workqueue.h>
 
 #include <linux/mmc/host.h>
 #include <soc/cpm.h>
@@ -365,7 +366,24 @@ int ingenic_mmc_manual_detect(int index, int on)
 		 * before detection, so the actual reset/enable line gets a genuine
 		 * fresh transition right here, not stale state from minutes/seconds
 		 * earlier at a completely different point in boot.
-		 * earlier at a completely different point in boot. */
+		 * earlier at a completely different point in boot.
+		 *
+		 * OpenKE (2026-07-22, FIRMWARE.md sec 49): a paired stock-vs-custom
+		 * register trace proved this power-cycle races the automatic rescan
+		 * the comment above already knows about. On custom, mmc1 registers
+		 * at ~1.33s and mmc_start_host()'s own automatic rescan doesn't
+		 * report "Failed to initialize a non-removable card" until ~2.26s -
+		 * nearly a full second later. This function's own power-off/on
+		 * cycle runs at ~1.77s, squarely *inside* that window, while the
+		 * automatic rescan may still be issuing commands against the chip.
+		 * On stock's real, working boot the equivalent manual insert is the
+		 * *only* rescan ever run against mmc1 - there is no second,
+		 * concurrent attempt to race against. cancel_delayed_work_sync()
+		 * on the host's own detect work guarantees any in-flight automatic
+		 * rescan has fully finished - not just had its next run cancelled -
+		 * before we cut power, so our power-cycle can never land mid-command
+		 * against a rescan that's still using the chip. */
+		cancel_delayed_work_sync(&host->mmc->detect);
 		mmc_power_off(host->mmc);
 		msleep(50);
 		mmc_power_up(host->mmc, host->mmc->ocr_avail);
