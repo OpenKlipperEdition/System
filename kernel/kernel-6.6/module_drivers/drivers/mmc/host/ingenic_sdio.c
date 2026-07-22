@@ -145,13 +145,25 @@ EXPORT_SYMBOL(ingenic_sdio_wlan_init);
 int ingenic_bcmdhd_wlan_power_onoff(int flag)
 {
 	if (flag) {
+		/* OpenKE (2026-07-22, FIRMWARE.md sec 50): WIFI_SEQ event markers -
+		 * cheap, always-on (this whole path only runs on manual insert/
+		 * remove, not per-command), matching the event timeline this
+		 * project's own investigation notes track stock against. */
+		printk("WIFI_SEQ: wlan power on requested, flag=%d\n", flag);
 		printk("wlan power on:%d\n", flag);
+		printk("WIFI_SEQ: RTC32K enable requested\n");
 		rtc32k_enable();
+		printk("WIFI_SEQ: RTC32K enable completed\n");
+		printk("WIFI_SEQ: MSC1 clock enable requested\n");
 		ingenic_mmc_clk_ctrl(wifi_data.sdio_index, 1);
+		printk("WIFI_SEQ: MSC1 clock enable completed\n");
 		if (flag == MANUALLY_INSERT) {
+			printk("WIFI_SEQ: manual insert requested\n");
 			ingenic_mmc_manual_detect(wifi_data.sdio_index, 1);
+			printk("WIFI_SEQ: manual insert call returned\n");
 		}
 	} else {
+		printk("WIFI_SEQ: wlan power off requested\n");
 		printk("wlan power off:%d\n", flag);
 		rtc32k_disable();
 	}
@@ -185,6 +197,7 @@ EXPORT_SYMBOL(ingenic_bcmdhd_wlan_power_onoff);
  * should already be settled by the time this fires. */
 static int __init openke_wifi_manual_insert(void)
 {
+	printk("WIFI_SEQ: openke_wifi_manual_insert entry\n");
 	if (wifi_data.sdio_index != 1) {
 		printk("openke_wifi_manual_insert: unexpected sdio_index %d, skipping\n",
 		       wifi_data.sdio_index);
