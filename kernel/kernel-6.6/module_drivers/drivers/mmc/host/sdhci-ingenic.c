@@ -11,6 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/ktime.h>
 #include <linux/workqueue.h>
 
 #include <linux/mmc/host.h>
@@ -307,6 +308,91 @@ static inline void ingenic_mmc_clk_onoff(struct sdhci_ingenic *ingenic_ing, unsi
 	}
 }
 
+/* OpenKE (2026-07-22, FIRMWARE.md sec 49): temporary paired-trace
+ * instrumentation for the stock-vs-custom CMD5 comparison. Polls the same
+ * raw MSC1 SDHCI register block (via the host's own host->ioaddr, already
+ * mapped by probe) and the CPM MSC1 clock-divider register (same physical
+ * address 0x100000a4 a stock-side /dev/mem sampler already captured) for a
+ * bounded 2s window right after mmc_detect_change() is kicked off, logging
+ * only changed words with a millisecond timestamp - same format/offsets as
+ * the stock capture, for a direct diff.
+ *
+ * Gated behind msc1_trace (default off) so this doesn't spam production
+ * boots: with it off, the poll loop still runs (cheap - one bounded 2s
+ * window, only on manual insert) but stays silent unless SDHCI_RESPONSE_0
+ * (offset 0x10) - the one register that actually distinguishes "chip
+ * answered" from "chip never answered" - changes, which is the single
+ * signal worth surfacing unconditionally. Full per-register logging needs
+ * msc1_trace=1. Blocking is fine here: this runs synchronously from
+ * openke_wifi_manual_insert()'s late_initcall context, not from an
+ * interrupt or atomic path. Not permanent - remove once WiFi works
+ * reliably. */
+static bool msc1_trace;
+module_param(msc1_trace, bool, 0644);
+MODULE_PARM_DESC(msc1_trace, "log every MSC1 SDHCI register change during manual insert (default: off, only report the first SDHCI_RESPONSE_0 change)");
+
+static void openke_msc1_trace(struct sdhci_host *host)
+{
+	void __iomem *cpm_msc1cdr;
+	u32 prev[25];
+	u32 prev_cdr = 0;
+	ktime_t t0;
+	bool first = true;
+	bool response_seen = false;
+	int i;
+	s64 ms;
+
+	cpm_msc1cdr = ioremap(0x100000a4, 4);
+	if (!cpm_msc1cdr) {
+		pr_err("openke_msc1_trace: ioremap CPM_MSC1CDR failed\n");
+		return;
+	}
+
+	memset(prev, 0, sizeof(prev));
+	t0 = ktime_get();
+	if (msc1_trace) {
+		pr_info("openke_msc1_trace: start\n");
+	}
+
+	while (ktime_ms_delta(ktime_get(), t0) < 2000) {
+		ms = ktime_ms_delta(ktime_get(), t0);
+		for (i = 0; i < 25; i++) {
+			u32 v = readl(host->ioaddr + i * 4);
+
+			if (i == 4 && !first && v != prev[i] && !response_seen) {
+				/* offset 0x10 = SDHCI_RESPONSE_0 - always report the
+				 * first real response, trace or not. */
+				pr_info("openke_msc1_trace: %6lld ms first SDHCI_RESPONSE_0 change: 0x%08x -> 0x%08x\n",
+					ms, prev[i], v);
+				response_seen = true;
+			}
+			if (msc1_trace && (first || v != prev[i])) {
+				pr_info("openke_msc1_trace: %6lld ms MSC1+0x%02x = 0x%08x\n",
+					ms, i * 4, v);
+			}
+			prev[i] = v;
+		}
+		if (msc1_trace) {
+			u32 cdr = readl(cpm_msc1cdr);
+
+			if (first || cdr != prev_cdr) {
+				pr_info("openke_msc1_trace: %6lld ms CPM_MSC1CDR = 0x%08x\n",
+					ms, cdr);
+			}
+			prev_cdr = cdr;
+		}
+		first = false;
+		usleep_range(200, 300);
+	}
+	if (msc1_trace) {
+		pr_info("openke_msc1_trace: done\n");
+	}
+	if (!response_seen) {
+		pr_info("openke_msc1_trace: no SDHCI_RESPONSE_0 change across the whole window - chip never answered\n");
+	}
+	iounmap(cpm_msc1cdr);
+}
+
 /**
  *  ingenic_mmc_manual_detect - insert or remove card manually
  *  @index: host->index, namely the index of the controller.
@@ -366,7 +452,6 @@ int ingenic_mmc_manual_detect(int index, int on)
 		 * before detection, so the actual reset/enable line gets a genuine
 		 * fresh transition right here, not stale state from minutes/seconds
 		 * earlier at a completely different point in boot.
-		 * earlier at a completely different point in boot.
 		 *
 		 * OpenKE (2026-07-22, FIRMWARE.md sec 49): a paired stock-vs-custom
 		 * register trace proved this power-cycle races the automatic rescan
@@ -393,6 +478,7 @@ int ingenic_mmc_manual_detect(int index, int on)
 		host->flags &= ~SDHCI_DEVICE_DEAD;
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 		mmc_detect_change(sdhci_ing->host->mmc, 0);
+		openke_msc1_trace(host);
 	} else {
 		dev_err(&sdhci_ing->pdev->dev, "card remove manually\n");
 		clear_bit(INGENIC_MMC_CARD_PRESENT, &sdhci_ing->flags);
