@@ -419,12 +419,17 @@
 	 * expected to be truly enabled at logical-0, since that's the state held throughout
 	 * actual SDIO enumeration. GPIO_ACTIVE_HIGH means logical value == physical level
 	 * (no inversion); GPIO_ACTIVE_LOW inverts. The vendor's own insmod params give the
-	 * real enable level per pin: wifi_reg_on_level=0 (gpd 4 enables at physical LOW) and
-	 * wifi_power_on_level=1 (gpa 1 enables at physical HIGH). For logical-0
-	 * (post_power_on/enumeration-time) to land on the real enable level: gpd 4 needs
-	 * logical0->physicalLOW, which is GPIO_ACTIVE_HIGH (not LOW); gpa 1 needs
-	 * logical0->physicalHIGH, which is GPIO_ACTIVE_LOW (not HIGH). Both were assigned
-	 * exactly backwards below. */
+	 * real enable level per pin - or so this reasoning assumed from the module
+	 * parameter *names* alone, without ever disassembling the real driver to check.
+	 *
+	 * OpenKE (2026-07-22, FIRMWARE.md sec 50): that assumption was wrong. Disassembling
+	 * stock's actual, live cywdhd.ko (bcm_wlan_power_on()/bcm_wlan_power_off()) shows
+	 * the real instruction sequence writes raw GPIO value 1 (physical HIGH) as the
+	 * enabled state on gpd 4/WL_REG_ON, and raw 0 (LOW) as held/reset - the opposite of
+	 * what "wifi_reg_on_level=0" was assumed to mean here. gpd 4 below is fixed to
+	 * GPIO_ACTIVE_LOW (so post_power_on's logical-0 release lands on the real,
+	 * disassembly-proven physical-HIGH enabled state) - see the reset-gpios comment
+	 * for the full trace. */
 	mmc-pwrseq = <&wlan_pwrseq>;
 
 	bcmdhd_wlan: bcmdhd_wlan {
@@ -462,23 +467,33 @@
 		 * chip reset line in its msc1 node - "ingenic,sdio-reset = <&gpd 1
 		 * GPIO_ACTIVE_LOW ...>" - distinct from WL_REG_ON (gpd 4, the power-enable pin
 		 * already modeled below, real per the insmod-script extraction in sec 44). That
-		 * vendor property is parsed directly by their own out-of-tree cywdhd.ko, which we
-		 * don't use, so nothing in our tree has ever read or toggled gpd 1 at all - it's
-		 * been left floating since every prior attempt. If this is the combo chip's real
-		 * SDIO-interface reset (as opposed to WL_REG_ON's regulator/power-rail enable),
-		 * leaving it unasserted-but-undriven could hold the chip's SDIO block in an
-		 * indeterminate or asserted-reset state regardless of every host-side clock/
-		 * command register being correct - which would exactly match the current
-		 * symptom (host sends real CMD0/CMD8/CMD5/CMD55, STAT never leaves 0x00000000,
-		 * no interrupt ever fires: the host is fine, nothing is answering). mmc-pwrseq-
-		 * simple's reset-gpios binding accepts an array - every gpio in it is asserted
-		 * together in pre_power_on() and released together in post_power_on() - so gpd 1
-		 * joins gpd 4 here rather than needing new driver code, since both want the same
-		 * "released once power/clock is stable" timing (unlike gpa1's shared-rail-
-		 * settling case in the sec 46 comment above, which needed independent timing and
-		 * was deliberately split out into its own regulator instead). */
-		reset-gpios = <&gpd 4 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>,
-			      <&gpd 1 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+		 * generic vendor SDK property is what motivated adding gpd 1 here as a real,
+		 * hardware-tested guess.
+		 *
+		 * OpenKE (2026-07-22, FIRMWARE.md sec 50): disassembling stock's actual, live
+		 * cywdhd.ko (not the generic vendor reference tree) settles this - both
+		 * bcm_wlan_power_on() and bcm_wlan_power_off() touch exactly one GPIO
+		 * (wlan_reg_on/gpd 4, via gpio_to_desc()+gpiod_set_raw_value()), never a second
+		 * pin. gpd 1 is never read or toggled by the real, running driver on this board
+		 * at all - removed, matching stock's real, disassembly-confirmed single-GPIO
+		 * behavior exactly rather than a generic-SDK guess.
+		 *
+		 * The same disassembly also settles gpd 4's actual polarity, which the sec 40/44
+		 * comments above got backwards from an unverified reading of the
+		 * wifi_reg_on_level=0 module parameter name: bcm_wlan_power_on(1)'s real
+		 * instruction sequence is gpiod_set_raw_value(wlan_reg_on, 0) -> msleep(100) ->
+		 * gpiod_set_raw_value(wlan_reg_on, 1) -> jzmmc_manual_detect() immediately after -
+		 * i.e. raw LOW is the held/reset state and raw HIGH is the enabled state
+		 * (confirmed symmetric: bcm_wlan_power_off() also ends by driving raw 0).
+		 * GPIO_ACTIVE_HIGH here made mmc_pwrseq_simple's post_power_on() (de-assert,
+		 * logical 0) land on raw LOW - the opposite of stock's real enabled state -
+		 * meaning WL_REG_ON was being left de-asserted (chip never actually powered on)
+		 * every time detection ran, fully consistent with the paired trace in sec 49
+		 * showing SDHCI_RESPONSE_0 never changes on custom: the SDHCI controller was
+		 * issuing real commands at a chip that was never actually powered on to answer
+		 * them. Fixed to GPIO_ACTIVE_LOW so post_power_on's logical-0 de-assert lands on
+		 * the real, disassembly-proven raw-HIGH enabled state. */
+		reset-gpios = <&gpd 4 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 		/* OpenKE (2026-07-21, FIRMWARE.md sec 40): the gpio-cells fix above is real and
 		 * confirmed (the kernel warning is gone on a live re-test). 200ms is a
 		 * generously safe stabilization delay for this chip class (real, common
