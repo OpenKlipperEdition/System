@@ -102,13 +102,28 @@
 		   * own early probe, well before mmc1 ever probes - decoupled from pwrseq's
 		   * post_power_on delay entirely, since a shared rail's real settling time has
 		   * nothing to do with any individual card's reset sequencing. */
+		  /* OpenKE (2026-07-22, FIRMWARE.md sec 52): a LIVE read of PA01 on the
+		   * real, currently-working, currently-associated stock system -
+		   * /sys/kernel/debug/gpio, "gpio-1 (|bt_wifi_power) out lo" - shows raw
+		   * LOW during real, active WiFi traffic. This directly confirms
+		   * bt_wifi_power_valid_level=0 (cywdhd.ko's own insmod parameter,
+		   * always available but never previously verified against a live
+		   * read): raw LOW is the real enabled state for this shared rail, not
+		   * raw HIGH as GPIO_ACTIVE_HIGH + regulator-always-on/-boot-on below
+		   * assumed - the same class of unverified-polarity mistake sec 50 found
+		   * and fixed for WL_REG_ON, on the OTHER real GPIO this investigation
+		   * has touched, discovered by finally checking stock's own live state
+		   * directly instead of inferring from a module-parameter name.
+		   * enable-active-high below was always a no-op on this kernel's
+		   * drivers/regulator/fixed.c - of_get_fixed_voltage_config() never
+		   * reads it, only the gpio cell's own active-flag controls polarity -
+		   * removed along with the fix so nothing misleading is left behind. */
 		  wifi_bt_power: wifi_bt_power_regulator {
 			   compatible = "regulator-fixed";
 			   regulator-name = "wifi_bt_power";
 			   regulator-min-microvolt = <3300000>;
 			   regulator-max-microvolt = <3300000>;
-			   gpio = <&gpa 1 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
-			   enable-active-high;
+			   gpio = <&gpa 1 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 			   regulator-always-on;
 			   regulator-boot-on;
 		  };
