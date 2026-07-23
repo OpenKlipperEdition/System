@@ -572,11 +572,19 @@
 };
 
 
+/* 2026-07-23 (boot-cleanup audit): no RJ45/wired-Ethernet port exists on Nebula
+ * Pad - this node is inherited reference-design boilerplate. Its own
+ * ingenic,rst-gpio (GPB-16) collides with lcd_rst, which already owns that
+ * pin for the display (confirmed live: gpio-48 "lcd_rst" out hi) - the real,
+ * populated consumer. Boot log showed "MII Probe failed"/"no PHY found",
+ * consistent with no PHY chip being present at all. Disabled rather than
+ * left enabled-but-failing; see docs/BOOT_WARNING_AUDIT.md.
+ */
 &mac1 {
 	pinctrl-names = "default", "reset";
 	pinctrl-0 = <&mac1_rgmii_p0_normal>, <&mac1_rgmii_p1_normal>;
 	pinctrl-1 = <&mac1_rgmii_p0_rst>, <&mac1_rgmii_p1_normal>;
-	status = "okay";
+	status = "disabled";
 	ingenic,rst-gpio = <&gpb 16 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 	ingenic,rst-ms = <10>;
 	ingenic,rst-delay-ms = <15>;
