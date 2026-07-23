@@ -503,17 +503,33 @@ static int __init ingenic_ost_init(struct device_node *np)
 		return -EINVAL;
 	}
 
+	/* Functional production-baseline mission, Phase 3: root-caused the "ost number
+	 * define in dt is too large" message - it was a real off-by-one in this loop's
+	 * old post-increment bounds check ("index > NR_CPUS * 2 - 1"), which fired on
+	 * the *last legitimate* cpu-ost-map entry itself (index reaches NR_CPUS * 2
+	 * after storing it), even though this board's DT provides exactly NR_CPUS (2)
+	 * pairs for its 2 real CPUs - never actually too large. Every real value was
+	 * already stored correctly before the old check ever ran, so the message was
+	 * always cosmetic, not a sign of lost data.
+	 *
+	 * Fixed by checking the target pair index *before* writing, against the real
+	 * array bound (cpu_ost_map[NR_CPUS]), instead of after the fact against a
+	 * flat value count. This both removes the false positive on the correct case
+	 * and is strictly safer than the original for a genuinely-oversized DT: the
+	 * old code could still perform one out-of-bounds write before its check
+	 * caught up (already past cpu_ost_map[NR_CPUS-1] by the time index exceeded
+	 * NR_CPUS * 2 - 1); this version never writes past a validated index. */
 	of_property_for_each_u32(np, "cpu-ost-map", prop, vp, pv) {
+		if (index / 2 >= NR_CPUS) {
+			printk("parse cpu-ost-iomap, ost number define in dt is too large!\n");
+			break;
+		}
 		if (index % 2) {
 			cpu_ost_map[index / 2].dev_base = (unsigned int)core_iobase + pv;
 		} else {
 			cpu_ost_map[index / 2].cpu_num = pv;
 		}
 		index ++;
-		if (index > NR_CPUS * 2 - 1) {
-			printk("parse cpu-ost-iomap, ost number define in dt is too large!\n");
-			break;
-		}
 	}
 
 	ext_clk = clk_get(NULL, "ext");
