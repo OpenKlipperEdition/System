@@ -746,37 +746,75 @@
 	ingenic,drvvbus-gpio = <&gpc 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 };
 
-/* 2026-07-23 (beeper/BAIC4 audio investigation): pinctrl-0 = <&baic4_pd> removed.
- * baic4_pd (ingenic,pinmux = <&gpd 2 5>, x2000-pinctrl.dtsi) is BAIC4's own
- * external I2S/PCM routing for Bluetooth SCO/voice audio (see the driver-side
- * removal of the "BAIC4"/"DMIC" DAI links in halley5_v20.c for the full
- * rationale) - it genuinely overlapped wlan_reg_on/bt_reg_on (GPD-4/5),
- * confirmed via live instrumentation (docs/PIN_OWNERSHIP_MAP.md,
- * docs/BOOT_WARNING_AUDIT.md). BAIC0/icodec (the real, on-chip audio path)
- * needs no external pins at all - as-baic.c never touches pinctrl itself, this
- * property was purely for BAIC4's now-removed external routing - so removing
- * it here doesn't affect as_be_baic's own probe or BAIC0's function. The
- * device stays enabled (status defaults to the base dtsi's "ok").
+/* 2026-07-23 (functional production-baseline mission, Phase 1/2): the entire PCM/ALSA
+ * audio graph below is disabled - Phase 1 of this mission booted the exact stock Nebula
+ * Pad firmware and found conclusive, converging evidence that stock never uses ALSA at
+ * all, not merely that this specific board revision doesn't populate a speaker:
+ *
+ *   - stock dmesg: "ALSA device list: No soundcards found." - the ASoC card never even
+ *     attempts to register, and none of icodec/as-baic/as-dsp/as-mixer/as-spdif/DMIC ever
+ *     print a probe message (the only "sound"-adjacent dmesg hits are the unrelated video
+ *     codec blocks, "13300000.felix vcodec"/"13200000.helix").
+ *   - /proc/asound/cards: "--- no soundcards ---"; /proc/asound/pcm: empty; the only
+ *     /proc/asound/devices entry is the generic ALSA sequencer timer (always present,
+ *     card-independent) - and /dev/snd contains only that same "timer" node.
+ *   - stock DOES ship a complete, real, carefully-tuned volume-control script
+ *     (/usr/bin/audio_setting.sh, real dB-step arrays, `amixer -D hw:icodecsoundcard`,
+ *     `alsactl store`) and a dedicated `audio-server` binary that references it - but
+ *     `audio-server` is not running (ps shows nothing), is not started by any
+ *     /etc/init.d/S* script, and stock's real, active production stack is Klipper +
+ *     GuppyScreen (S55klipper_service, S56moonraker_service, S99guppyscreen) - the whole
+ *     app-server/audio-server/display-server/master-server/web-server/wifi-server binary
+ *     family is inactive legacy-reference code from an earlier internal architecture,
+ *     present on the shared rootfs image but never wired into this product's own boot
+ *     sequence. Its presence on disk is not evidence of use.
+ *
+ * This supersedes the 2026-07-23 (beeper/BAIC4 audio investigation) note that kept
+ * as_be_baic/icodec enabled pending exactly this stock-evidence question - it's now
+ * answered, negatively, for the whole subsystem, not just BAIC4. The previously-confirmed
+ * real, independent PWM beeper (GPC-3/PWM channel 3, guppybeep, direct /dev/mem MMIO,
+ * entirely bypassing ALSA/kernel-PWM-subsystem) is completely unaffected by any node below
+ * and needs no audio component to keep working - see docs/BEEPER_CONTROL_PATH.md.
+ *
+ * GPIO 34/Speaker_en (previously classified UNKNOWN_REQUIRES_PCB_EVIDENCE, see
+ * docs/PIN_OWNERSHIP_MAP.md) is resolved by this same disable: the `sound` node below was
+ * its only live consumer, so the property is removed with it rather than left as a
+ * request nothing will ever process.
  */
-&as_be_baic {
+&as_platform {
+	status = "disabled";
 };
 
-/* OpenKE (2026-07-21, FIRMWARE.md sec 43): disabled - real, confirmed pin conflict with
- * uart1 (gpc 21, part of uart1_pc's 4-pin group, needed for the real mainboard MCU link -
- * "pin GPC-21 already requested by 134da000.as-dmic; cannot claim for 10031000.serial" on a
- * real boot). This override had zero justification/verification comment, unlike everything
- * else in this file - a 4-channel digital-mic array is a common reference-board demo
- * feature, and this printer's confirmed real audio path is the speaker/codec (icodec,
- * "x2000-sound sound: Sound Card successed"), not a mic array. Same class of bug as
- * BCMDHD/GT9XX/the camera ISP pipeline/the second MIPI panel found earlier this session -
- * enabled without ever being confirmed against real hardware, this time actively blocking
- * something that IS confirmed real and needed. */
+&as_virtual_fe {
+	status = "disabled";
+};
+
+&as_fmtcov {
+	status = "disabled";
+};
+
+&as_fe_dsp {
+	status = "disabled";
+};
+
+&as_be_baic {
+	status = "disabled";
+};
+
 &as_dmic {
 	status = "disabled";
 };
 
+&as_aux_mixer {
+	status = "disabled";
+};
+
+&as_spdif {
+	status = "disabled";
+};
+
 &icodec {
-	ingenic,spken-gpio = <&gpb 2 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+	status = "disabled";
 };
 
 / {
@@ -806,10 +844,14 @@
 		ingenic,wake-gpio = <&gpd 21 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 	};
 
+	/* Functional production-baseline mission, Phase 2: disabled along with the rest of
+	 * the PCM/ALSA graph above - see that comment block for the full stock-evidence
+	 * rationale. Machine driver (halley5_v20.c) never probes; ingenic,spken-gpio (GPIO
+	 * 34) removed with it, since this was its only live consumer. */
 	sound {
 		compatible = "ingenic,x2000-sound";
 		ingenic,model = "halley5_v30";
-		ingenic,spken-gpio = <&gpb 2 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		status = "disabled";
 	};
 
 	spi_gpio {
