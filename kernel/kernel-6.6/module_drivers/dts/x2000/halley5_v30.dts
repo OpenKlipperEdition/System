@@ -554,7 +554,15 @@
  * if a genuine microSD slot is ever confirmed on a future board
  * revision. */
 &msc2 {
-	status = "disable";
+	/* OpenKE (2026-07-23): "disabled" is the real devicetree-spec value
+	 * (along with "okay"/"fail"/"fail-sss") - "disable" elsewhere in this
+	 * file (uart0, uart2, spi0, nemc, ...) is pre-existing, non-canonical,
+	 * and still functions correctly under this kernel's own
+	 * of_device_is_available() check (anything != "okay" is unavailable),
+	 * but this node is new enough this session to just use the correct
+	 * value outright rather than copy a convention worth fixing on its
+	 * own, unrelated to MSC2. */
+	status = "disabled";
 };
 
 &nemc {
