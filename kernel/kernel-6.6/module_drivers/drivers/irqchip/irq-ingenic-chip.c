@@ -363,18 +363,26 @@ static int __init ingenic_intc_of_init(struct device_node *node)
 
 	irq_chips->irq = irq;
 
+	/* Functional production-baseline mission, Phase 3 (found via a fresh boot-log
+	 * review after fixing the same bug in ingenic_core_ost.c's cpu-ost-map parsing):
+	 * identical off-by-one - "index" is a post-increment value count, so exactly
+	 * NR_CPUS pairs is the correct, fully-valid case, not an overflow. Checking the
+	 * target pair index before writing (against the real cpu_intc_map[NR_CPUS]
+	 * bound) instead of after the fact against a flat value count removes the false
+	 * positive on this board's correct 2-pair DT and is strictly safer for a
+	 * genuinely-oversized DT too - see ingenic_core_ost.c's ingenic_ost_init() for
+	 * the full analysis, identical reasoning applies here. */
 	of_property_for_each_u32(node, "cpu-intc-map", prop, vp, pv) {
+		if (index / 2 >= NR_CPUS) {
+			printk("parse cpu-intc-iomap, intc define in dt is too large!\n");
+			break;
+		}
 		if (index % 2) {
 			cpu_intc_map[index / 2].dev_base = (unsigned int)iobase + pv;
 		} else {
 			cpu_intc_map[index / 2].cpu_num = pv;
 		}
-
 		index ++;
-		if (index > NR_CPUS * 2 - 1) {
-			printk("parse cpu-intc-iomap, intc define in dt is too large!\n");
-			break;
-		}
 	}
 
 	core_irq_setup(irq_chips);
