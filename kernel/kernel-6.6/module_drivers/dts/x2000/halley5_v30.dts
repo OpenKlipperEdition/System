@@ -884,3 +884,24 @@
 	ingenic,gpio-sleep-func2    = <>;
 	ingenic,gpio-sleep-func3    = <>;
 };
+
+/* 2026-07-23 (final cleanup mission, Phase 4): disabled - both MScaler
+ * instances register as v4l2_subdev components (mscaler.c), meant to be part
+ * of the SoC's own internal ISP/camera pipeline, not directly opened as a
+ * /dev/videoN capture device the way this project's actual, confirmed
+ * working camera path (a USB UVC webcam via ustreamer) is. Zero userspace
+ * consumer anywhere on this rootfs references "mscaler" or VIDIOC ioctls
+ * against it (grepped live), and /sys/class/video4linux carries no
+ * mscaler-specific node. "IRQ index 0 not found" was already a driver-level
+ * dev_warn (not dev_err - probe continues regardless), and rotation/H.264
+ * encode/decode (the SoC blocks actually confirmed working) are entirely
+ * separate devices unaffected by this. Classification:
+ * UNUSED_REFERENCE_DESIGN_BLOCK - see docs/BOOT_WARNING_AUDIT.md.
+ */
+&mscaler0 {
+	status = "disabled";
+};
+
+&mscaler1 {
+	status = "disabled";
+};
