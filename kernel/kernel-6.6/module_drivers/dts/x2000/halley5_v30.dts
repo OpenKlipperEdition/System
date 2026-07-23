@@ -181,8 +181,22 @@
 	status = "disable";
 };
 
+/* 2026-07-23 (final cleanup mission, Phase 3, Path A): status flipped to
+ * "disabled". The pin-sharing analysis below stands unchanged and is the
+ * reason this is a clean disable rather than a real fix - i2c4/touch always
+ * wins the GPC-25/26 race (confirmed every boot), so this node was
+ * unconditionally, guaranteedly going to fail its own pinctrl apply, every
+ * single boot, forever, in its previous "okay" state. That's real, avoidable
+ * noise ("pin GPC-25 already requested by 10054000.i2c; cannot claim for
+ * 10033000.serial", "Error applying setting, reverse things back") for a
+ * node that was never going to succeed anyway - not a case of "might work
+ * this time." Disabling it doesn't lose anything: BT never worked over this
+ * node regardless of its status here. Preserved in full below for whoever
+ * eventually implements the real fix (stock's own dynamic runtime pin
+ * hand-off, not a static devicetree change) - see docs/BOOT_WARNING_AUDIT.md.
+ */
 &uart3 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pc>;
 
