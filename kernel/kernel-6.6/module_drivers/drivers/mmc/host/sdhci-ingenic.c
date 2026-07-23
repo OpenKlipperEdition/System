@@ -590,45 +590,22 @@ static int sdhci_ingenic_parse_dt(struct device *dev,
 	}
 	pdata->gpio = card_gpio;
 
-	/* OPENKE-DIAG (2026-07-23, Phase 3A, temporary - boot-cleanup mission):
-	 * log every outcome (acquired/absent/error+PTR_ERR) for the three
-	 * optional GPIOs this function requests, since none of the resulting
-	 * dev_err() calls above were ever observed firing in the unmodified
-	 * boot log despite msc0's DTS defining malformed ingenic,{rst,cd,wp}-
-	 * gpios = <0> properties - need to know exactly what devm_gpiod_get_
-	 * optional() actually returns for a single-cell, phandle-0 property.
-	 */
 	pdata->sdr_v18 = devm_gpiod_get_optional(dev, "ingenic,sdr", GPIOD_OUT_HIGH);
 	if (IS_ERR(pdata->sdr_v18)) {
 		dev_err(dev, "get ingenic,sdr failed with error %ld\n",
 		        PTR_ERR(pdata->sdr_v18));
-		dev_err(dev, "OPENKE-DIAG: ingenic,sdr -> ERR_PTR(%ld)\n", PTR_ERR(pdata->sdr_v18));
-	} else if (!pdata->sdr_v18) {
-		dev_info(dev, "OPENKE-DIAG: ingenic,sdr -> NULL (absent)\n");
-	} else {
-		dev_info(dev, "OPENKE-DIAG: ingenic,sdr -> acquired\n");
 	}
 
 	pdata->gpio->pwr = devm_gpiod_get_optional(dev, "ingenic,pwr", GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->gpio->pwr)) {
 		dev_err(dev, "get ingenic,pwr failed with error %ld\n",
 		        PTR_ERR(pdata->gpio->pwr));
-		dev_err(dev, "OPENKE-DIAG: ingenic,pwr -> ERR_PTR(%ld)\n", PTR_ERR(pdata->gpio->pwr));
-	} else if (!pdata->gpio->pwr) {
-		dev_info(dev, "OPENKE-DIAG: ingenic,pwr -> NULL (absent)\n");
-	} else {
-		dev_info(dev, "OPENKE-DIAG: ingenic,pwr -> acquired\n");
 	}
 
 	pdata->gpio->rst = devm_gpiod_get_optional(dev, "ingenic,rst", GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->gpio->rst)) {
 		dev_err(dev, "get ingenic,rst failed with error %ld\n",
 		        PTR_ERR(pdata->gpio->rst));
-		dev_err(dev, "OPENKE-DIAG: ingenic,rst -> ERR_PTR(%ld)\n", PTR_ERR(pdata->gpio->rst));
-	} else if (!pdata->gpio->rst) {
-		dev_info(dev, "OPENKE-DIAG: ingenic,rst -> NULL (absent)\n");
-	} else {
-		dev_info(dev, "OPENKE-DIAG: ingenic,rst -> acquired\n");
 	}
 
 	/* assuming internal card detect that will be configured by pinctrl */
@@ -762,13 +739,9 @@ static int sdhci_ingenic_probe(struct platform_device *pdev)
 	 * msc0/msc2, which don't have "wlan-reg-on-gpios". */
 	sdhci_ing->wlan_reg_on = devm_gpiod_get_optional(dev, "wlan-reg-on", GPIOD_ASIS);
 	if (IS_ERR(sdhci_ing->wlan_reg_on)) {
-		dev_err(dev, "OPENKE-DIAG: wlan-reg-on -> ERR_PTR(%ld)\n",
-		        PTR_ERR(sdhci_ing->wlan_reg_on));
 		return dev_err_probe(dev, PTR_ERR(sdhci_ing->wlan_reg_on),
 			"failed to acquire WLAN_REG_ON GPIO\n");
 	}
-	dev_info(dev, "OPENKE-DIAG: wlan-reg-on -> %s\n",
-	         sdhci_ing->wlan_reg_on ? "acquired" : "NULL (absent)");
 	if (sdhci_ing->wlan_reg_on) {
 		ret = gpiod_direction_output_raw(sdhci_ing->wlan_reg_on, 0);
 		if (ret) {
