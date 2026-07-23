@@ -465,10 +465,17 @@ static int ingenic_as_dsp_probe(struct platform_device *pdev)
 		dapm_widgets[i].id = snd_soc_dapm_mux;
 		dapm_widgets[i].name = LO_PORT_NAME(id);
 		dapm_widgets[i].reg = SND_SOC_NOPM;
-#if 0
+		/* 2026-07-23 (final cleanup mission): this was vendor dead code
+		 * (#if 0) - a snd_soc_dapm_mux widget with no kcontrol assigned at
+		 * all, which mainline ASoC's dapm_new_mux() rejects outright
+		 * ("ASoC: mux %s has incorrect number of controls", one per LO
+		 * port - 12 on this board, matching ingenic,lo-port's 12 entries).
+		 * lomux_enum[]/lomux_controls[] above are already correctly sized
+		 * (LO_PORT_MAX_NUM=16) and indexed by the same `id` used here, so
+		 * enabling this is a straight, already-written fix, not new logic.
+		 */
 		dapm_widgets[i].kcontrol_news = &lomux_controls[id];
 		dapm_widgets[i].num_kcontrols = 1;
-#endif
 		dapm_widgets[i].event = ingenic_as_dsp_widget_event;
 		dapm_widgets[i].priv = (void *)id;
 		dapm_widgets[i++].event_flags = SND_SOC_DAPM_PRE_PMU;
