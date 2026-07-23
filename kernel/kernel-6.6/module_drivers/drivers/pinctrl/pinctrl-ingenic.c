@@ -14,6 +14,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -666,12 +667,29 @@ static int ingenic_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct ingenic_gpio_chip *jzgc = gc_to_ingenic_gc(chip);
 	unsigned gpio = chip->base + offset;
+	/* OPENKE-DIAG (2026-07-23, Phase 3A, temporary - boot-cleanup mission):
+	 * used_pins_bitmap only ever tells us THAT a pin was claimed twice, never
+	 * WHO claimed it the first time - dump_stack() on the conflicting
+	 * (second) request already exists below, but the original owner's call
+	 * chain is otherwise lost. Scoped to GPD only, since the unmodified
+	 * boot log already narrows the conflict to that one bank
+	 * ("ingenic_gpio_request: GP:GPD used_pins_bitmap: 0X07FE3F3C") - dumping
+	 * every bank's first-claim stack would be excessive, untargeted noise.
+	 */
+	bool openke_diag_bank = !strcmp(jzgc->name, "GPD");
 
 	if (jzgc->used_pins_bitmap & (1 << offset)) {
 		printk("%s: GP:%s  used_pins_bitmap: 0X%08X\n", __func__, jzgc->name, jzgc->used_pins_bitmap);
 		//printk("current gpio request pin: chip->name %s, gpio: 0X%08X\n", chip->of_node->name, 1 << offset);
+		if (openke_diag_bank) {
+			printk("OPENKE-DIAG: SECOND/CONFLICTING request for %s-%u (global gpio %u):\n",
+			       jzgc->name, offset, gpio);
+		}
 		dump_stack();
 		printk("%s:gpio functions has redefinition\n", __FILE__);
+	} else if (openke_diag_bank) {
+		printk("OPENKE-DIAG: first claim of %s-%u (global gpio %u):\n", jzgc->name, offset, gpio);
+		dump_stack();
 	}
 
 	jzgc->used_pins_bitmap |= 1 << offset;
