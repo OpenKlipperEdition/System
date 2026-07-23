@@ -86,7 +86,22 @@ static int ingenic_mac_phy_hwrst(struct platform_device *pdev, bool init)
 	if (!(lp->reset_gpio == NULL)) {
 		goto hw_reset;
 	}
-	lp->reset_gpio = devm_gpiod_get_optional(dev, "ingenic,rst", GPIOD_OUT_LOW);;
+	lp->reset_gpio = devm_gpiod_get_optional(dev, "ingenic,rst", GPIOD_OUT_LOW);
+	if (IS_ERR(lp->reset_gpio)) {
+		/* A real acquisition failure (e.g. the pin is already owned by
+		 * another consumer) is not the same thing as "property absent" -
+		 * treating it as such here previously let an ERR_PTR flow into
+		 * gpiod_set_value_cansleep() below, which gpiolib caught with its
+		 * own "invalid GPIO (errorpointer)" warning but otherwise silently
+		 * no-op'd, meaning the reset pulse this function exists to send
+		 * never actually happened.
+		 */
+		dev_err(dev, "failed to get ingenic,rst GPIO: %ld\n",
+		        PTR_ERR(lp->reset_gpio));
+		ret = PTR_ERR(lp->reset_gpio);
+		lp->reset_gpio = NULL;
+		goto out;
+	}
 	if (lp->reset_gpio == NULL) {
 		goto out;
 	}
