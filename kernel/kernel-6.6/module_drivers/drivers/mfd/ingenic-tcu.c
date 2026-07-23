@@ -866,7 +866,17 @@ static int ingenic_tcu_probe(struct platform_device *pdev)
 #if (!(defined CONFIG_SOC_X2600) && !(defined CONFIG_SOC_AD100))
 	tcu->irq_trigger = platform_get_irq(pdev, 1);
 	if (tcu->irq_trigger < 0) {
-		dev_err(&pdev->dev, "not support irq trigger function\n");
+		/* 2026-07-23 (final cleanup mission, Phase 6): downgraded from
+		 * dev_err - this is a real, base-SoC-dtsi-level omission (x2000.dtsi's
+		 * &tcu only ever defines `interrupts = <IRQ_TCU0>`, one entry, on
+		 * every board using this SoC, not something board-specific), and
+		 * `ret` here is unconditionally overwritten below (line ~902,
+		 * request_irq for tcu->irq) before it's ever checked - this value
+		 * has no effect on probe success or failure. No PWM/watchdog/timer
+		 * consumer on this board requires the optional trigger-mode IRQ
+		 * ("TCU driver register completed" already confirms the probe
+		 * finishes regardless). Not a real per-boot error. */
+		dev_info(&pdev->dev, "no trigger-mode IRQ (optional, not used by this board)\n");
 		ret = tcu->irq_trigger;
 	} else {
 		ret = request_irq(tcu->irq_trigger, ingenic_tcu_trigger_interrupt,
