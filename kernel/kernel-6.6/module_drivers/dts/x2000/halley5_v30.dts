@@ -146,15 +146,35 @@
  * base x2000.dtsi leaves uart1 with no explicit status property at all (defaults to
  * enabled per devicetree spec), but without this pinctrl assignment the physical TX/RX
  * pins were never actually muxed to the UART1 function, only the controller itself being
- * nominally "on". Only one real pin group exists for this uart (unlike uart3's 2-pin/
- * 4-pin choice) - x2000-pinctrl.dtsi's uart1_pc, gpc 21-24. Never tested against real
- * mainboard hardware yet (needs the mainboard physically reconnected) - this fixes the
- * one thing confirmable from source alone (the missing pin wiring); whether the actual
- * MCU handshake succeeds still needs a real connected test. */
+ * nominally "on".
+ *
+ * OpenKE (2026-07-23, stock-parity audit): the fix above used x2000-pinctrl.dtsi's own
+ * uart1_pc (gpc 21-24, a 4-pin TX/RX/RTS/CTS group - the SoC vendor SDK's only defined
+ * uart1 group) on the assumption it was the sole option. Live evidence disproved that:
+ * pulled and decoded the real, running stock device's own live pinctrl debugfs
+ * (artifacts/parity/stock/42-debugfs-pinctrl-pinmux-pins.txt) and stock's uart1 only ever
+ * claims gpc 23-24 (2 pins, TX/RX only) - gpc 21/22 are never touched by uart1 on stock.
+ * Worse, gpc 21 is a REAL, ACTIVE conflict on custom: simultaneously claimed by uart1's
+ * alt-function *and* by lcd_vdd_en (the LCD power-enable line) as a plain GPIO output,
+ * confirmed from the same live boot's own debugfs GPIO capture
+ * (artifacts/parity/custom/40-debugfs-gpio.txt). Harmless so far only because Klipper's
+ * MCU protocol doesn't use hardware flow control - not because the conflict isn't real.
+ * uart1_pc_txrx below is a board-local 2-pin group (gpc 23-24 only, same FUNCTION1 mux
+ * value as uart1_pc) matching stock's real, narrower wiring exactly - see
+ * docs/PIN_OWNERSHIP_MAP.md and docs/PRINTER_MAINBOARD_PRECONNECTION_CHECKLIST.md. The
+ * printer mainboard was never connected for any of this - pinmux/live-pin-state audit
+ * only, real MCU handshake still untested. */
+&uart1_pin {
+	uart1_pc_txrx: uart1-pc-txrx {
+		ingenic,pinmux = <&gpc 23 24>;
+		ingenic,pinmux-funcsel = <PINCTL_FUNCTION1>;
+	};
+};
+
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pc>;
+	pinctrl-0 = <&uart1_pc_txrx>;
 };
 
 &uart2 {
