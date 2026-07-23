@@ -862,7 +862,17 @@ static int of_sysfs_parse_export_info(struct hw_compfb_device *compfb)
 			lay_cfg->source_h = value[i * 2 + 1];
 		}
 	} else {
-		dev_err(fbdev->dev, "fbdev get swap param error! please check dts.");
+		/* 2026-07-23 (boot-cleanup audit, Phase 15): layer,src-size(-swap) is a
+		 * real, but genuinely board-specific/optional property - only one other
+		 * reference board in this tree (kale_v10.dts) defines it at all. Its
+		 * absence here leaves lay_cfg->source_w/h at zero (devm_kzalloc default),
+		 * which is this board's own already-proven-working display state (this
+		 * function feeds an optional multi-layer hw-compositor sysfs export, not
+		 * the primary framebuffer path GuppyScreen actually uses). Downgraded
+		 * from dev_err to dev_dbg: this was never a real per-boot error on this
+		 * board, just a driver treating "board doesn't populate an optional
+		 * property" the same as "malformed dts" - no values changed here. */
+		dev_dbg(fbdev->dev, "layer,src-size not present - hw-compositor export layer sizes left at default (0)\n");
 	}
 
 	ret = of_property_read_u32_array(np, "layer,stride", value, 4);
