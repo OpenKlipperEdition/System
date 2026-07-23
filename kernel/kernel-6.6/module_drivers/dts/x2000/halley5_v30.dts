@@ -602,8 +602,22 @@
 	*/
 };
 
+/* 2026-07-23 (boot-cleanup audit, Phase 9): disabled - "unknown flash type" /
+ * probe failure -22 on every boot, on both stock and custom. Converging
+ * evidence this SPI-NOR/NAND controller has no populated flash chip on this
+ * board revision: /proc/mtd is empty (header only, zero devices) and
+ * /sys/class/mtd has zero entries on BOTH systems; /sys/bus/spi/devices only
+ * ever shows spi2.0 (the already-documented, unrelated FACTORY_TEST_DEVICE
+ * spidev placeholder) on stock, nothing SFC-related on either. The node's
+ * own norflash@0 child defines a uboot/kernel/rootfs partition scheme that
+ * doesn't match this board's real, extensively-verified eMMC-based OTA A/B
+ * boot architecture (kernel/kernel2/rootfs/rootfs2/ota on mmcblk0) -
+ * consistent with unmodified reference-design boilerplate for a board
+ * variant that boots from SPI-NOR instead. Classification:
+ * UNPOPULATED_REFERENCE_DESIGN_BLOCK - see docs/BOOT_WARNING_AUDIT.md.
+ */
 &sfc {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sfc_pe>;
 	ingenic,sfc-init-frequency = <200000000>;
