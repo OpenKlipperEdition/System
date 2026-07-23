@@ -537,6 +537,26 @@
 	ingenic,rst-gpio = <0>;
 };
 
+/* OpenKE (2026-07-23, stock-parity audit): disabled - inherited Halley5
+ * reference-board MSC2/microSD config with no evidence it belongs on this
+ * board. Stock's own live device tree never enables msc2 at all (Phase 1/2
+ * runtime and DTB comparison, docs/DTB_PARITY_REPORT.md); no physical SD
+ * slot has been identified on the Nebula Pad PCB; and its ingenic,sdr-gpio
+ * property above claims &gpc 0 - the exact same pin pwm0_pc uses for its
+ * only real PWM alternate function on this SoC, and the same pin stock's
+ * own live GPIO dump labels backlight_pwm0. Confirmed real, not
+ * speculative: driven as a plain GPIO output HIGH by msc2 on every custom
+ * boot before this fix, with no separate backlight_pwm0 GPIO claim
+ * present at all (docs/PIN_OWNERSHIP_MAP.md). This override (a later
+ * &msc2 block always wins over the earlier one's status for the same
+ * property) turns the controller off without deleting the reference
+ * node's properties, so the real pin numbers stay documented in one place
+ * if a genuine microSD slot is ever confirmed on a future board
+ * revision. */
+&msc2 {
+	status = "disable";
+};
+
 &nemc {
 	status = "disable";
 	pinctrl-names = "default";
