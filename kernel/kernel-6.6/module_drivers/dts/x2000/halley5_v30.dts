@@ -732,9 +732,19 @@
 	ingenic,drvvbus-gpio = <&gpc 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 };
 
+/* 2026-07-23 (beeper/BAIC4 audio investigation): pinctrl-0 = <&baic4_pd> removed.
+ * baic4_pd (ingenic,pinmux = <&gpd 2 5>, x2000-pinctrl.dtsi) is BAIC4's own
+ * external I2S/PCM routing for Bluetooth SCO/voice audio (see the driver-side
+ * removal of the "BAIC4"/"DMIC" DAI links in halley5_v20.c for the full
+ * rationale) - it genuinely overlapped wlan_reg_on/bt_reg_on (GPD-4/5),
+ * confirmed via live instrumentation (docs/PIN_OWNERSHIP_MAP.md,
+ * docs/BOOT_WARNING_AUDIT.md). BAIC0/icodec (the real, on-chip audio path)
+ * needs no external pins at all - as-baic.c never touches pinctrl itself, this
+ * property was purely for BAIC4's now-removed external routing - so removing
+ * it here doesn't affect as_be_baic's own probe or BAIC0's function. The
+ * device stays enabled (status defaults to the base dtsi's "ok").
+ */
 &as_be_baic {
-	pinctrl-names = "default";
-	pinctrl-0 =  <&baic4_pd>;
 };
 
 /* OpenKE (2026-07-21, FIRMWARE.md sec 43): disabled - real, confirmed pin conflict with

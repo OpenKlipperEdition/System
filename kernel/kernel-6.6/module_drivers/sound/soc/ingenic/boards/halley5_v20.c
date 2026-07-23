@@ -411,13 +411,8 @@ SND_SOC_DAILINK_DEFS(inno_icodec,
                      DAILINK_COMP_ARRAY(COMP_CPU("BAIC0")),
                      DAILINK_COMP_ARRAY(COMP_CODEC("10020000.icodec", "icodec")));
 
-SND_SOC_DAILINK_DEFS(dmic,
-                     DAILINK_COMP_ARRAY(COMP_CPU("DMIC")),
-                     DAILINK_COMP_ARRAY(COMP_DUMMY()));
-
-SND_SOC_DAILINK_DEFS(baic4_bt,
-                     DAILINK_COMP_ARRAY(COMP_CPU("BAIC4")),
-                     DAILINK_COMP_ARRAY(COMP_DUMMY()));
+/* dmic/baic4_bt SND_SOC_DAILINK_DEFS removed 2026-07-23 along with their DAI
+ * link entries below - see the comment there for the full rationale. */
 
 static struct snd_soc_dai_link x2000_dais[] = {
 	/*FE DAIS*/
@@ -523,24 +518,40 @@ static struct snd_soc_dai_link x2000_dais[] = {
 		SND_SOC_DAILINK_REG(inno_icodec),
 	},
 
-	[11] = {
-		.name = "DMIC",
-		.stream_name = "DMIC",
-		.no_pcm = 1,
-		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(dmic),
-	},
-
-	[12] = {
-		.name = "BAIC4",
-		.stream_name = "BAIC4",
-		.ops = &baic_ops,
-		.be_hw_params_fixup = NULL,
-		.no_pcm = 1,
-		.dpcm_capture = 1,
-		.dpcm_playback = 1,
-		SND_SOC_DAILINK_REG(baic4_bt),
-	},
+	/* 2026-07-23 (beeper/BAIC4 audio investigation): removed the "DMIC" and
+	 * "BAIC4" back-end DAI links.
+	 *
+	 * DMIC: its CPU DAI component only ever comes from &as_dmic, which a
+	 * prior session disabled for a real, confirmed reason (freed GPC-21 for
+	 * uart1/the printer MCU link - see FIRMWARE.md). With no DT node left to
+	 * ever register a "DMIC" component, this DAI link could never resolve -
+	 * every deferred-probe sweep for the entire card's registration retried
+	 * it forever (dev_info "ASoC: CPU DAI DMIC not registered" /
+	 * "snd_soc_register_card failed -517" on every boot), which meant NO
+	 * ALSA card ever registered at all (confirmed live: /proc/asound/cards
+	 * showed "--- no soundcards ---" even though BAIC0/icodec's own
+	 * dev_info said "Sound Card successed" - that message is from an
+	 * earlier stage that doesn't reflect final registration success).
+	 *
+	 * BAIC4: its own variable name (baic4_bt) and DAI link name/DT wiring
+	 * (as_be_baic's pinctrl-0 = <&baic4_pd>, GPD-2..5) identify it as the
+	 * Bluetooth SCO/voice-audio PCM backend for the WiFi/BT combo chip, not
+	 * a speaker or mic. This device has no real Bluetooth-audio product use
+	 * (it's a 3D-printer control pad, not a headset), and Bluetooth's own
+	 * HCI transport doesn't work on this board yet regardless (documented,
+	 * separate uart3/i2c4 pin conflict) - so this endpoint has never had a
+	 * reachable consumer. Its pinctrl claim (GPD-2..5) genuinely overlapped
+	 * wlan_reg_on/bt_reg_on (GPD-4/5) - see docs/PIN_OWNERSHIP_MAP.md and
+	 * docs/BAIC4_AUDIO_INVESTIGATION.md for the full trace - removed here
+	 * together with the board DTS's own baic4_pd pinctrl-0 claim.
+	 *
+	 * BAIC0/icodec (the real, on-chip speaker/beeper-adjacent codec path,
+	 * confirmed to need no external GPIO pins at all - as-baic.c itself
+	 * never touches pinctrl, so this removal doesn't affect it) is
+	 * untouched and is now the only BE DAI link this card has, alongside
+	 * the beeper's own entirely separate, non-ASoC PWM control path (see
+	 * docs/BEEPER_CONTROL_PATH.md).
+	 */
 };
 
 static struct snd_soc_aux_dev x2000_aux_dev = {
