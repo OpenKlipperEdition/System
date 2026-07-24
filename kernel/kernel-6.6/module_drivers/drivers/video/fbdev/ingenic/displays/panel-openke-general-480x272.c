@@ -141,7 +141,22 @@ static struct tft_config openke_general_480x272_cfg = {
 	.sync_dl = 0,
 	.color_even = TFT_LCD_COLOR_EVEN_RGB,
 	.color_odd = TFT_LCD_COLOR_ODD_RGB,
-	.mode = TFT_LCD_MODE_PARALLEL_888,
+	/* Isolated experiment (ke-mainline-klipper display-quality mission): was
+	 * PARALLEL_888, an explicitly unconfirmed guess per this file's own header
+	 * comment and FIRMWARE.md sec 9 ("RGB888 assumed... wrong here would show
+	 * as color-channel banding/miscoloring"). This driver was modeled on the
+	 * SDK's own panel-st7701s-rgb666.c, whose real active tft_config uses
+	 * PARALLEL_666 - copied here unchanged except for this field, which was
+	 * deviated to 888 with no supporting evidence. Disassembly of the real
+	 * lcd_general_480x272.ko could not resolve the true value (its .data
+	 * section has only one relocation - the panel name string - so no
+	 * tft_config sub-struct pointer/value is recoverable from this module
+	 * alone; the true value likely lives in the much larger closed soc_fb.ko,
+	 * not pulled for this experiment). This is a single-variable, physically
+	 * validated test per the mission's own Phase 11 protocol, not a
+	 * disassembly-proven fact - revert if it doesn't fix the physical defect.
+	 */
+	.mode = TFT_LCD_MODE_PARALLEL_666,
 };
 
 struct lcd_panel lcd_panel = {
