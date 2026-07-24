@@ -351,8 +351,27 @@
 		 * gpio_is_valid() guards skip requesting/driving it at all,
 		 * matching stock's observed hands-off steady state exactly - not
 		 * a polarity change, a real ownership-parity test.
+		 *
+		 * ingenic,rst-gpio (PB16) also omitted, on stronger evidence than
+		 * the vdd-en case above: disassembled the real, live
+		 * lcd_general_480x272.ko (mipsel-buildroot-linux-gnu-objdump -d),
+		 * not just its behavior. init_module()'s own control flow branches
+		 * on the lcd_is_inited module parameter - stock's own load script
+		 * (module_driver/lcd_general_480x272.sh) passes lcd_is_inited=1,
+		 * and on that path init_module() calls gpio_request() on both
+		 * power_en and rst (claiming ownership only, which is why they
+		 * show up with real consumer labels in debugfs) and then jumps
+		 * straight to jzfb_register_lcd() - it never calls
+		 * gpiod_direction_output_raw() on either pin. The function that
+		 * does perform a real reset pulse, general_480x272_power_on()
+		 * (disassembled: RAW-HIGH, 5ms, RAW-LOW, 5ms, RAW-HIGH, 20ms), is
+		 * only reachable on the lcd_is_inited==0 branch, which stock's own
+		 * real deployment never takes. This is not inferred from live
+		 * state - it is what the real vendor binary's own logic proves:
+		 * the bootloader performs the complete reset sequence before
+		 * Linux boots, and stock Linux deliberately never re-touches
+		 * either pin afterward.
 		 */
-		ingenic,rst-gpio = <&gpb 16 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 	};
 };
 
