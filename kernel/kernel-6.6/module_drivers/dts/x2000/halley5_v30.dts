@@ -337,9 +337,21 @@
 		compatible = "openke,general-480x272";
 		/* GPIO roles + pin numbers confirmed live on the real device via
 		 * /sys/module/lcd_general_480x272/parameters/{gpio_lcd_power_en,gpio_lcd_rst}
-		 * (PC21, PB16). Polarity NOT confirmed - GPIO_ACTIVE_HIGH is a guess,
-		 * easy to flip here without a rebuild if the panel powers up inverted. */
-		ingenic,vdd-en-gpio = <&gpc 21 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		 * (PC21, PB16).
+		 *
+		 * ingenic,vdd-en-gpio (PC21) deliberately omitted - real, live,
+		 * stock-parity evidence (not a guess): with the exact real
+		 * lcd_general_480x272.ko loaded and lcd_is_inited=1 (display
+		 * genuinely working, confirmed visually), stock's own live GPIO
+		 * state for this exact pin is input, reading low - stock never
+		 * holds it as a driven output in its steady state, unlike this
+		 * driver's previous unconditional gpio_direction_output(..., 1)
+		 * at probe with no release. This DT node omitting the property
+		 * is what makes panel-openke-general-480x272.c's own existing
+		 * gpio_is_valid() guards skip requesting/driving it at all,
+		 * matching stock's observed hands-off steady state exactly - not
+		 * a polarity change, a real ownership-parity test.
+		 */
 		ingenic,rst-gpio = <&gpb 16 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
 	};
 };
