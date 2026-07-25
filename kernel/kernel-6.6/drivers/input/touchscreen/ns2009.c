@@ -83,8 +83,24 @@ static int ns2009_ts_report(struct ns2009_data *data)
 	 * here.
 	 */
 	ret = ns2009_ts_read_data(data, NS2009_READ_Z1_LOW_POWER_12BIT, &z1);
-	if (ret)
+	if (ret) {
+		/* Temporary diagnostic (ke-mainline-klipper touch mission):
+		 * custom reports zero coordinate events on this exact board
+		 * despite matching capabilities/ranges vs stock - need to see
+		 * whether z1 reads are failing outright (as opposed to
+		 * succeeding but never crossing the pen-down threshold).
+		 * Rate-limited, bounded, read-only - no behavior change. */
+		pr_err_ratelimited("ns2009 diag: z1 read failed, ret=%d\n", ret);
 		return ret;
+	}
+
+	/* Temporary diagnostic: log every z1 sample near/at the threshold so
+	 * a real touch's actual value is visible even if it never crosses
+	 * NS2009_PEN_UP_Z1_ERR (80) - would otherwise be silently invisible,
+	 * since only the pen-down/up transition (not the raw pressure
+	 * reading itself) was ever logged anywhere. */
+	pr_info_ratelimited("ns2009 diag: z1=%u threshold=%u pen_down=%d\n",
+			     z1, NS2009_PEN_UP_Z1_ERR, data->pen_down);
 
 	if (z1 >= NS2009_PEN_UP_Z1_ERR) {
 		ret = ns2009_ts_read_data(data, NS2009_READ_X_LOW_POWER_12BIT,
