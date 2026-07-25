@@ -141,7 +141,22 @@ static struct tft_config openke_general_480x272_cfg = {
 	.sync_dl = 0,
 	.color_even = TFT_LCD_COLOR_EVEN_RGB,
 	.color_odd = TFT_LCD_COLOR_ODD_RGB,
-	.mode = TFT_LCD_MODE_PARALLEL_888,
+	/* Isolated experiment #3 (ke-mainline-klipper display-quality mission).
+	 * Experiments #1 (plain PARALLEL_666) and #2 (PARALLEL_666 +
+	 * reference dither) were both wrong bus widths - this is now
+	 * hardware-proven, not guessed: live devmem read of the real DC_TFT_CFG
+	 * register (physical 0x13059010 = DPU base 0x13050000 + offset 0x9010)
+	 * on stock booted and running gave 0x00000102. Decoded against this
+	 * driver's own dpu_reg.h bitfield definitions (DC_MODE_LBIT=0,
+	 * DC_MODE_HBIT=2): bits[2:0] = 0b010 = TFT_LCD_MODE_PARALLEL_565, not
+	 * 888 or 666. Custom's own live value at the same register read
+	 * 0x00000000 (mode=888, matching this driver's prior config exactly -
+	 * confirms the read methodology is sound). COLOR_EVEN/COLOR_ODD bits
+	 * matched (both RGB) - not touched here. Bit 8 (DC_SYNC_DL) also
+	 * differed (stock=1, custom=0) but is left alone in this experiment -
+	 * one isolated variable at a time. Revert if this doesn't fix the
+	 * physical grain/noise defect. */
+	.mode = TFT_LCD_MODE_PARALLEL_565,
 };
 
 struct lcd_panel lcd_panel = {
