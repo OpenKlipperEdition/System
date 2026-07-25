@@ -22,6 +22,7 @@
 #include <linux/input.h>
 #include <linux/input/touchscreen.h>
 #include <linux/i2c.h>
+#include <linux/gpio/consumer.h>
 
 /* polling interval in ms */
 #define POLL_INTERVAL	30
@@ -53,6 +54,14 @@ struct ns2009_data {
 	struct touchscreen_properties	prop;
 
 	bool				pen_down;
+
+	/* ke-mainline-klipper touch mission: optional "pendown-gpios" DT
+	 * property, matching stock's real (disassembly-proven) touch-detect
+	 * signal - see the halley5_v30.dts ns2009@48 node for the full
+	 * evidence trail. NULL (no property present) preserves the original
+	 * generic upstream Z1-threshold-only behavior unchanged for any other
+	 * board using this driver. */
+	struct gpio_desc		*pendown_gpio;
 };
 
 static int ns2009_ts_read_data(struct ns2009_data *data, u8 cmd, u16 *val)
@@ -99,10 +108,20 @@ static int ns2009_ts_report(struct ns2009_data *data)
 	 * NS2009_PEN_UP_Z1_ERR (80) - would otherwise be silently invisible,
 	 * since only the pen-down/up transition (not the raw pressure
 	 * reading itself) was ever logged anywhere. */
-	pr_info_ratelimited("ns2009 diag: z1=%u threshold=%u pen_down=%d\n",
-			     z1, NS2009_PEN_UP_Z1_ERR, data->pen_down);
+	pr_info_ratelimited("ns2009 diag: z1=%u threshold=%u pen_down=%d gpio=%d\n",
+			     z1, NS2009_PEN_UP_Z1_ERR, data->pen_down,
+			     data->pendown_gpio ? gpiod_get_value_cansleep(data->pendown_gpio) : -1);
 
-	if (z1 >= NS2009_PEN_UP_Z1_ERR) {
+	/* ke-mainline-klipper touch mission: when a pendown-gpios property is
+	 * present, use it as the pen-down signal instead of the Z1 pressure
+	 * threshold - proven live on this exact board that z1 always reads 0
+	 * regardless of touch state, while stock's own driver never uses Z1
+	 * at all (interrupt-driven off this exact GPIO instead). Boards
+	 * without the property keep the original upstream Z1-only behavior
+	 * unchanged. */
+	if (data->pendown_gpio ?
+	    gpiod_get_value_cansleep(data->pendown_gpio) :
+	    (z1 >= NS2009_PEN_UP_Z1_ERR)) {
 		ret = ns2009_ts_read_data(data, NS2009_READ_X_LOW_POWER_12BIT,
 					  &x);
 		if (ret)
@@ -203,6 +222,17 @@ static int ns2009_ts_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
+
+	/* ke-mainline-klipper touch mission: optional, absent on any board
+	 * that doesn't declare "pendown-gpios" in its DT node - see the
+	 * struct field comment and halley5_v30.dts for the full evidence
+	 * trail behind this exact property on this exact board. */
+	data->pendown_gpio = devm_gpiod_get_optional(dev, "pendown", GPIOD_IN);
+	if (IS_ERR(data->pendown_gpio)) {
+		dev_err(dev, "Failed to get pendown-gpios: %ld\n",
+			PTR_ERR(data->pendown_gpio));
+		return PTR_ERR(data->pendown_gpio);
+	}
 
 	error = ns2009_ts_request_polled_input_dev(data);
 	if (error)
