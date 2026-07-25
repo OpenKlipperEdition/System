@@ -319,6 +319,36 @@
 	ns2009@48 {
 		compatible = "nsiway,ns2009";
 		reg = <0x48>;
+		/* ke-mainline-klipper touch mission: the upstream ns2009.c driver
+		 * gates touch detection purely on the Z1 pressure ADC channel
+		 * (>=80 threshold), which was proven live (temporary
+		 * pr_info_ratelimited instrumentation) to read exactly 0 on every
+		 * poll on this real board, regardless of touch state - the pure
+		 * software-polling approach never detects a press.
+		 *
+		 * Stock's closed ns2009_touch.ko uses a completely different,
+		 * interrupt-driven architecture instead (devm_request_threaded_irq,
+		 * confirmed via disassembly symbols ns2009_hard_irq/ns2009_soft_irq,
+		 * and a real "Unbalanced enable for IRQ 74" kernel warning seen
+		 * live during stock's own ns2009_open()). Its I2C read commands
+		 * for X/Y (0xc0/0xd0) are byte-identical to this driver's, proven
+		 * via relocation-verified disassembly of stock's own soft-irq
+		 * handler - so the coordinate read path itself is not in question,
+		 * only how a press is detected in the first place.
+		 *
+		 * This exact GPIO was identified the same way, not guessed:
+		 * disassembly of stock's addirq() function shows a proven
+		 * relocation-confirmed call chain `gpio_to_desc(79)` ->
+		 * `gpiod_to_irq()` -> `devm_request_threaded_irq()`. Raw GPIO 79
+		 * decodes to GPIOC pin 15 under this project's own established
+		 * bank*32+pin convention (confirmed elsewhere via GPIO85=PC21).
+		 * A live register snapshot during a real, confirmed touch did not
+		 * show a level change on this pin - inconclusive, not
+		 * disconfirming: a single devmem snapshot over SSH can easily miss
+		 * a brief edge pulse, which is exactly what an interrupt-driven
+		 * design would produce. Physically validate this change before
+		 * keeping; revert if it doesn't fix real touch input. */
+		pendown-gpios = <&gpc 15 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 	};
 };
 
