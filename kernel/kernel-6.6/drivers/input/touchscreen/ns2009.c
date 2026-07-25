@@ -85,43 +85,32 @@ static int ns2009_ts_report(struct ns2009_data *data)
 {
 	u16 x, y, z1;
 	int ret;
-
-	/*
-	 * NS2009 chip supports pressure measurement, but currently it needs
-	 * more investigation, so we only use z1 axis to detect pen down
-	 * here.
-	 */
-	ret = ns2009_ts_read_data(data, NS2009_READ_Z1_LOW_POWER_12BIT, &z1);
-	if (ret) {
-		/* Temporary diagnostic (ke-mainline-klipper touch mission):
-		 * custom reports zero coordinate events on this exact board
-		 * despite matching capabilities/ranges vs stock - need to see
-		 * whether z1 reads are failing outright (as opposed to
-		 * succeeding but never crossing the pen-down threshold).
-		 * Rate-limited, bounded, read-only - no behavior change. */
-		pr_err_ratelimited("ns2009 diag: z1 read failed, ret=%d\n", ret);
-		return ret;
-	}
-
-	/* Temporary diagnostic: log every z1 sample near/at the threshold so
-	 * a real touch's actual value is visible even if it never crosses
-	 * NS2009_PEN_UP_Z1_ERR (80) - would otherwise be silently invisible,
-	 * since only the pen-down/up transition (not the raw pressure
-	 * reading itself) was ever logged anywhere. */
-	pr_info_ratelimited("ns2009 diag: z1=%u threshold=%u pen_down=%d gpio=%d\n",
-			     z1, NS2009_PEN_UP_Z1_ERR, data->pen_down,
-			     data->pendown_gpio ? gpiod_get_value_cansleep(data->pendown_gpio) : -1);
+	bool pen_is_down;
 
 	/* ke-mainline-klipper touch mission: when a pendown-gpios property is
 	 * present, use it as the pen-down signal instead of the Z1 pressure
-	 * threshold - proven live on this exact board that z1 always reads 0
-	 * regardless of touch state, while stock's own driver never uses Z1
-	 * at all (interrupt-driven off this exact GPIO instead). Boards
-	 * without the property keep the original upstream Z1-only behavior
-	 * unchanged. */
-	if (data->pendown_gpio ?
-	    gpiod_get_value_cansleep(data->pendown_gpio) :
-	    (z1 >= NS2009_PEN_UP_Z1_ERR)) {
+	 * threshold - proven on this exact board that the touch driver never
+	 * generated coordinate events via Z1 polling, while stock's own
+	 * driver never uses Z1 at all (interrupt-driven off this exact GPIO
+	 * instead - see halley5_v30.dts ns2009@48 for the full evidence
+	 * trail). Physically confirmed fixed: all corners and center
+	 * activate accurately. Boards without the property keep the
+	 * original upstream Z1-only behavior unchanged. */
+	if (data->pendown_gpio) {
+		pen_is_down = gpiod_get_value_cansleep(data->pendown_gpio);
+	} else {
+		/*
+		 * NS2009 chip supports pressure measurement, but currently it
+		 * needs more investigation, so we only use z1 axis to detect
+		 * pen down here.
+		 */
+		ret = ns2009_ts_read_data(data, NS2009_READ_Z1_LOW_POWER_12BIT, &z1);
+		if (ret)
+			return ret;
+		pen_is_down = z1 >= NS2009_PEN_UP_Z1_ERR;
+	}
+
+	if (pen_is_down) {
 		ret = ns2009_ts_read_data(data, NS2009_READ_X_LOW_POWER_12BIT,
 					  &x);
 		if (ret)
