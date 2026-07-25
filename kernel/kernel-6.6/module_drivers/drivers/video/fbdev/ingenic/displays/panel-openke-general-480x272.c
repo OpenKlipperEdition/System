@@ -141,24 +141,7 @@ static struct tft_config openke_general_480x272_cfg = {
 	.sync_dl = 0,
 	.color_even = TFT_LCD_COLOR_EVEN_RGB,
 	.color_odd = TFT_LCD_COLOR_ODD_RGB,
-	/* Isolated experiment #2 (ke-mainline-klipper display-quality mission).
-	 * Experiment #1 (plain PARALLEL_666, no dither, kernel commit
-	 * 6abb0ad11) was tested and reverted: physical result was a color
-	 * tint/shift, defect still present - PLAIN_RGB666_NOT_THE_FIX. That
-	 * symptom (tint, not grain) is the textbook signature of truncating
-	 * 8-bit software color to a 6-bit hardware bus with no compensating
-	 * dither - exactly what was missing from experiment #1. This time
-	 * pairing PARALLEL_666 with the reference template's own dither
-	 * config (panel-st7701s-rgb666.c: dither_enable=1, all three
-	 * channels=1) - the single, tightly-coupled change the reference
-	 * driver actually uses, not a second independent hypothesis. Cache
-	 * coherency (fbrefresh full-frame-rewrite test, UNCHANGED) and DPU
-	 * underrun (dump_irqcnts, tft_under=0 across ~9k interrupts) were
-	 * both ruled out first - this is a Decision-C
-	 * POST_DMA_LCD_OUTPUT_CONFIGURATION_DEFECT follow-up, not a guess.
-	 * Physically validate before keeping; revert if it doesn't fix the
-	 * underlying grain/noise defect. */
-	.mode = TFT_LCD_MODE_PARALLEL_666,
+	.mode = TFT_LCD_MODE_PARALLEL_888,
 };
 
 struct lcd_panel lcd_panel = {
@@ -172,10 +155,7 @@ struct lcd_panel lcd_panel = {
 	.lcd_type = LCD_TYPE_TFT,
 	.tft_config = &openke_general_480x272_cfg,
 
-	.dither_enable = 1,
-	.dither.dither_red = 1,
-	.dither.dither_green = 1,
-	.dither.dither_blue = 1,
+	.dither_enable = 0,
 	.ops = &panel_ops,
 };
 
