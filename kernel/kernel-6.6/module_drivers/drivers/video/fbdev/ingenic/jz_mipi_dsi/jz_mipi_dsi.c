@@ -50,7 +50,6 @@ static LIST_HEAD(dsim_ddi_list);
 static DEFINE_MUTEX(mipi_dsim_lock);
 
 void dump_dsi_reg(struct dsi_device *dsi);
-static DEFINE_MUTEX(dsi_lock);
 
 int jz_dsi_video_cfg(struct dsi_device *dsi)
 {
