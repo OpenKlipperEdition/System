@@ -37,3 +37,12 @@ append-only region):
 
 These live in `NebulaOS-firmware`, not this repo — this repo only holds the base kernel source they
 patch at build time.
+
+## License
+
+This is a multi-component SDK (kernel, Buildroot, u-boot, and several vendored external tools),
+each under its own upstream license — there is no single root `LICENSE` file because no single
+license covers everything here. The Linux kernel itself is at `kernel/kernel-6.6/COPYING` (GPL-2.0)
+and `kernel/kernel-6.6/LICENSES/`; other top-level directories carry their own `COPYING`/`LICENSE`
+files. GitHub's automatic license detector only scans the repo root, so it correctly shows no
+detected license for this repo as a whole — check the specific subdirectory you're using instead.
