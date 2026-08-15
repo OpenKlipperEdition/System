@@ -38,6 +38,15 @@ append-only region):
 These live in `NebulaOS-firmware`, not this repo — this repo only holds the base kernel source they
 patch at build time.
 
+## Developer documentation
+
+Canonical build/install/update/recovery procedures live in `NebulaOS-firmware`, not here — this
+repo only tracks kernel source:
+
+- [`NebulaOS-firmware` wiki](https://github.com/coreflake1/NebulaOS-firmware/wiki)
+- [Build From Source](https://github.com/coreflake1/NebulaOS-firmware/blob/main/docs/BUILD_FROM_SOURCE.md) — how this repo's `openke` branch gets pulled in and patched
+- [A/B Slot Model](https://github.com/coreflake1/NebulaOS-firmware/blob/main/docs/A_B_SLOT_MODEL.md)
+
 ## License
 
 This is a multi-component SDK (kernel, Buildroot, u-boot, and several vendored external tools),
