@@ -4348,6 +4348,8 @@ void tracing_iter_reset(struct trace_iterator *iter, int cpu)
 		}
 		entries++;
 		ring_buffer_iter_advance(buf_iter);
+		/* This could be a big loop */
+		cond_resched();
 	}
 
 	per_cpu_ptr(iter->array_buffer->data, cpu)->skipped_entries = entries;
