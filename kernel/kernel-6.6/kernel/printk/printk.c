@@ -2455,7 +2455,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	 * non-panic CPUs are generating any messages, they will be
 	 * silently dropped.
 	 */
-	if (other_cpu_in_panic()) {
+	if (unlikely(suppress_panic_printk) && other_cpu_in_panic()) {
 		return 0;
 	}
 
