@@ -768,8 +768,9 @@ int bpf_probe_unregister(struct bpf_raw_event_map *btp, struct bpf_prog *prog);
 struct bpf_raw_event_map *bpf_get_raw_tracepoint(const char *name);
 void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp);
 int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
-                            u32 *fd_type, const char **buf,
-                            u64 *probe_offset, u64 *probe_addr);
+			    u32 *fd_type, const char **buf,
+			    u64 *probe_offset, u64 *probe_addr,
+			    unsigned long *missed);
 int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *prog);
 int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *prog);
 #else
@@ -807,9 +808,9 @@ static inline void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
 {
 }
 static inline int bpf_get_perf_event_info(const struct perf_event *event,
-        u32 *prog_id, u32 *fd_type,
-        const char **buf, u64 *probe_offset,
-        u64 *probe_addr)
+					  u32 *prog_id, u32 *fd_type,
+					  const char **buf, u64 *probe_offset,
+					  u64 *probe_addr, unsigned long *missed)
 {
 	return -EOPNOTSUPP;
 }
@@ -882,9 +883,10 @@ extern void perf_trace_del(struct perf_event *event, int flags);
 extern int  perf_kprobe_init(struct perf_event *event, bool is_retprobe);
 extern void perf_kprobe_destroy(struct perf_event *event);
 extern int bpf_get_kprobe_info(const struct perf_event *event,
-                               u32 *fd_type, const char **symbol,
-                               u64 *probe_offset, u64 *probe_addr,
-                               bool perf_type_tracepoint);
+			       u32 *fd_type, const char **symbol,
+			       u64 *probe_offset, u64 *probe_addr,
+			       unsigned long *missed,
+			       bool perf_type_tracepoint);
 #endif
 #ifdef CONFIG_UPROBE_EVENTS
 extern int  perf_uprobe_init(struct perf_event *event,
