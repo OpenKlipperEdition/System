@@ -2668,6 +2668,14 @@ static unsigned int npcm_get_divisor(struct uart_8250_port *up,
 	return DIV_ROUND_CLOSEST(port->uartclk, 16 * baud + 2) - 2;
 }
 
+static void serial8250_flush_buffer(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	if (up->dma)
+		serial8250_tx_dma_flush(up);
+}
+
 static unsigned int serial8250_do_get_divisor(struct uart_port *port,
         unsigned int baud,
         unsigned int *frac)
@@ -3412,26 +3420,27 @@ static const char *serial8250_type(struct uart_port *port)
 }
 
 static const struct uart_ops serial8250_pops = {
-	.tx_empty   = serial8250_tx_empty,
-	.set_mctrl  = serial8250_set_mctrl,
-	.get_mctrl  = serial8250_get_mctrl,
-	.stop_tx    = serial8250_stop_tx,
-	.start_tx   = serial8250_start_tx,
-	.throttle   = serial8250_throttle,
-	.unthrottle = serial8250_unthrottle,
-	.stop_rx    = serial8250_stop_rx,
-	.enable_ms  = serial8250_enable_ms,
-	.break_ctl  = serial8250_break_ctl,
-	.startup    = serial8250_startup,
-	.shutdown   = serial8250_shutdown,
-	.set_termios    = serial8250_set_termios,
-	.set_ldisc  = serial8250_set_ldisc,
-	.pm     = serial8250_pm,
-	.type       = serial8250_type,
-	.release_port   = serial8250_release_port,
-	.request_port   = serial8250_request_port,
-	.config_port    = serial8250_config_port,
-	.verify_port    = serial8250_verify_port,
+	.tx_empty	= serial8250_tx_empty,
+	.set_mctrl	= serial8250_set_mctrl,
+	.get_mctrl	= serial8250_get_mctrl,
+	.stop_tx	= serial8250_stop_tx,
+	.start_tx	= serial8250_start_tx,
+	.throttle	= serial8250_throttle,
+	.unthrottle	= serial8250_unthrottle,
+	.stop_rx	= serial8250_stop_rx,
+	.enable_ms	= serial8250_enable_ms,
+	.break_ctl	= serial8250_break_ctl,
+	.startup	= serial8250_startup,
+	.shutdown	= serial8250_shutdown,
+	.flush_buffer	= serial8250_flush_buffer,
+	.set_termios	= serial8250_set_termios,
+	.set_ldisc	= serial8250_set_ldisc,
+	.pm		= serial8250_pm,
+	.type		= serial8250_type,
+	.release_port	= serial8250_release_port,
+	.request_port	= serial8250_request_port,
+	.config_port	= serial8250_config_port,
+	.verify_port	= serial8250_verify_port,
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_get_char = serial8250_get_poll_char,
 	.poll_put_char = serial8250_put_poll_char,
