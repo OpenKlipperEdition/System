@@ -3792,13 +3792,13 @@ static struct ctl_table tty_table[] = {
 		.proc_handler   = proc_dobool,
 	},
 	{
-		.procname   = "ldisc_autoload",
-		.data       = &tty_ldisc_autoload,
-		.maxlen     = sizeof(tty_ldisc_autoload),
-		.mode       = 0644,
-		.proc_handler   = proc_dointvec,
-		.extra1     = SYSCTL_ZERO,
-		.extra2     = SYSCTL_ONE,
+		.procname	= "ldisc_autoload",
+		.data		= &tty_ldisc_autoload,
+		.maxlen		= sizeof(tty_ldisc_autoload),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{ }
 };
