@@ -4757,6 +4757,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 	if (!sd->in_net_rx_action) {
 		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 	}
+
 }
 
 #ifdef CONFIG_RPS
