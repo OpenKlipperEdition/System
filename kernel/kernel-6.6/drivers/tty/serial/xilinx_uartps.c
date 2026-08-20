@@ -271,7 +271,7 @@ static void cdns_uart_handle_rx(void *dev_id, unsigned int isrstatus)
 			}
 		}
 
-		if (uart_handle_sysrq_char(port, data)) {
+		if (uart_prepare_sysrq_char(port, data))
 			continue;
 		}
 
@@ -375,7 +375,7 @@ static irqreturn_t cdns_uart_isr(int irq, void *dev_id)
 		cdns_uart_handle_rx(dev_id, isrstatus);
 	}
 
-	uart_port_unlock(port);
+	uart_unlock_and_check_sysrq(port);
 	return IRQ_HANDLED;
 }
 
