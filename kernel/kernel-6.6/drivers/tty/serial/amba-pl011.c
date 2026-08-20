@@ -1374,6 +1374,7 @@ static void pl011_stop_tx(struct uart_port *port)
 }
 
 static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq);
+static void pl011_rs485_tx_start(struct uart_amba_port *uap);
 
 /* Start TX with programmed I/O only (no DMA) */
 static void pl011_start_tx_pio(struct uart_amba_port *uap)
@@ -1388,6 +1389,10 @@ static void pl011_start_tx(struct uart_port *port)
 {
 	struct uart_amba_port *uap =
 	    container_of(port, struct uart_amba_port, port);
+
+	if ((uap->port.rs485.flags & SER_RS485_ENABLED) &&
+	    !uap->rs485_tx_started)
+		pl011_rs485_tx_start(uap);
 
 	if (!pl011_dma_tx_start(uap)) {
 		pl011_start_tx_pio(uap);
@@ -1506,11 +1511,6 @@ static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
 {
 	struct circ_buf *xmit = &uap->port.state->xmit;
 	int count = uap->fifosize >> 1;
-
-	if ((uap->port.rs485.flags & SER_RS485_ENABLED) &&
-	    !uap->rs485_tx_started) {
-		pl011_rs485_tx_start(uap);
-	}
 
 	if (uap->port.x_char) {
 		if (!pl011_tx_char(uap, uap->port.x_char, from_irq)) {
