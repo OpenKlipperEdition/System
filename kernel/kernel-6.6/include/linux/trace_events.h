@@ -687,12 +687,28 @@ struct trace_event_file {
 	atomic_t        tm_ref; /* trigger-mode reference counter */
 };
 
-#define __TRACE_EVENT_FLAGS(name, value)                \
-	static int __init trace_init_flags_##name(void)         \
-	{                               \
-		event_##name.flags |= value;                \
-		return 0;                       \
-	}                               \
+#ifdef CONFIG_HIST_TRIGGERS
+extern struct irq_work hist_poll_work;
+extern wait_queue_head_t hist_poll_wq;
+
+static inline void hist_poll_wakeup(void)
+{
+	if (wq_has_sleeper(&hist_poll_wq))
+		irq_work_queue(&hist_poll_work);
+}
+
+#define hist_poll_wait(file, wait)	\
+	poll_wait(file, &hist_poll_wq, wait)
+#endif
+
+#define __TRACE_EVENT_FLAGS(name, value)				\
+	static int __init trace_init_flags_##name(void)		\
+	{							\
+		event_##name.flags |= value;				\
+		return 0;						\
+	}							\
+	early_initcall(trace_init_flags_##name);
+
 	early_initcall(trace_init_flags_##name);
 
 #define __TRACE_EVENT_PERF_PERM(name, expr...)              \
