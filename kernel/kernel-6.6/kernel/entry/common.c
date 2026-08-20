@@ -82,6 +82,11 @@ static long syscall_trace_enter(struct pt_regs *regs, long syscall,
 
 	if (unlikely(work & SYSCALL_WORK_SYSCALL_TRACEPOINT)) {
 		trace_sys_enter(regs, syscall);
+		/*
+		 * Probes or BPF hooks in the tracepoint may have changed the
+		 * system call number as well.
+		 */
+		syscall = syscall_get_nr(current, regs);
 	}
 
 	syscall_enter_audit(regs, syscall);
