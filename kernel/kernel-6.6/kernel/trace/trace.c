@@ -1785,21 +1785,19 @@ static ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
 {
 	int len;
 
-	if (trace_seq_used(s) <= s->seq.readpos) {
+	if (trace_seq_used(s) <= s->readpos)
 		return -EBUSY;
-	}
 
-	len = trace_seq_used(s) - s->seq.readpos;
-	if (cnt > len) {
+	len = trace_seq_used(s) - s->readpos;
+	if (cnt > len)
 		cnt = len;
-	}
-	memcpy(buf, s->buffer + s->seq.readpos, cnt);
+	memcpy(buf, s->buffer + s->readpos, cnt);
 
-	s->seq.readpos += cnt;
+	s->readpos += cnt;
 	return cnt;
 }
 
-unsigned long __read_mostly tracing_thresh;
+unsigned long __read_mostly	tracing_thresh;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 static const struct file_operations tracing_max_lat_fops;
@@ -3920,209 +3918,114 @@ char *trace_iter_expand_format(struct trace_iterator *iter)
 }
 
 /* Returns true if the string is safe to dereference from an event */
-static bool trace_safe_str(struct trace_iterator *iter, const char *str,
-                           bool star, int len)
+static bool trace_safe_str(struct trace_iterator *iter, const char *str)
 {
 	unsigned long addr = (unsigned long)str;
 	struct trace_event *trace_event;
 	struct trace_event_call *event;
 
-	/* Ignore strings with no length */
-	if (star && !len) {
-		return true;
-	}
-
 	/* OK if part of the event data */
 	if ((addr >= (unsigned long)iter->ent) &&
-	    (addr < (unsigned long)iter->ent + iter->ent_size)) {
+	    (addr < (unsigned long)iter->ent + iter->ent_size))
 		return true;
-	}
 
 	/* OK if part of the temp seq buffer */
 	if ((addr >= (unsigned long)iter->tmp_seq.buffer) &&
-	    (addr < (unsigned long)iter->tmp_seq.buffer + PAGE_SIZE)) {
+	    (addr < (unsigned long)iter->tmp_seq.buffer + PAGE_SIZE))
 		return true;
-	}
 
 	/* Core rodata can not be freed */
-	if (is_kernel_rodata(addr)) {
+	if (is_kernel_rodata(addr))
 		return true;
-	}
 
-	if (trace_is_tracepoint_string(str)) {
+	if (trace_is_tracepoint_string(str))
 		return true;
-	}
 
 	/*
 	 * Now this could be a module event, referencing core module
 	 * data, which is OK.
 	 */
-	if (!iter->ent) {
+	if (!iter->ent)
 		return false;
-	}
 
 	trace_event = ftrace_find_event(iter->ent->type);
-	if (!trace_event) {
+	if (!trace_event)
 		return false;
-	}
 
 	event = container_of(trace_event, struct trace_event_call, event);
-	if ((event->flags & TRACE_EVENT_FL_DYNAMIC) || !event->module) {
+	if ((event->flags & TRACE_EVENT_FL_DYNAMIC) || !event->module)
 		return false;
-	}
 
 	/* Would rather have rodata, but this will suffice */
-	if (within_module_core(addr, event->module)) {
+	if (within_module_core(addr, event->module))
 		return true;
-	}
 
 	return false;
 }
 
-static const char *show_buffer(struct trace_seq *s)
-{
-	struct seq_buf *seq = &s->seq;
-
-	seq_buf_terminate(seq);
-
-	return seq->buffer;
-}
-
-static DEFINE_STATIC_KEY_FALSE(trace_no_verify);
-
-static int test_can_verify_check(const char *fmt, ...)
-{
-	char buf[16];
-	va_list ap;
-	int ret;
-
-	/*
-	 * The verifier is dependent on vsnprintf() modifies the va_list
-	 * passed to it, where it is sent as a reference. Some architectures
-	 * (like x86_32) passes it by value, which means that vsnprintf()
-	 * does not modify the va_list passed to it, and the verifier
-	 * would then need to be able to understand all the values that
-	 * vsnprintf can use. If it is passed by value, then the verifier
-	 * is disabled.
-	 */
-	va_start(ap, fmt);
-	vsnprintf(buf, 16, "%d", ap);
-	ret = va_arg(ap, int);
-	va_end(ap);
-
-	return ret;
-}
-
-static void test_can_verify(void)
-{
-	if (!test_can_verify_check("%d %d", 0, 1)) {
-		pr_info("trace event string verifier disabled\n");
-		static_branch_inc(&trace_no_verify);
-	}
-}
-
 /**
- * trace_check_vprintf - Check dereferenced strings while writing to the seq buffer
+ * ignore_event - Check dereferenced fields while writing to the seq buffer
  * @iter: The iterator that holds the seq buffer and the event being printed
- * @fmt: The format used to print the event
- * @ap: The va_list holding the data to print from @fmt.
  *
- * This writes the data into the @iter->seq buffer using the data from
- * @fmt and @ap. If the format has a %s, then the source of the string
- * is examined to make sure it is safe to print, otherwise it will
- * warn and print "[UNSAFE MEMORY]" in place of the dereferenced string
- * pointer.
+ * At boot up, test_event_printk() will flag any event that dereferences
+ * a string with "%s" that does exist in the ring buffer. It may still
+ * be valid, as the string may point to a static string in the kernel
+ * rodata that never gets freed. But if the string pointer is pointing
+ * to something that was allocated, there's a chance that it can be freed
+ * by the time the user reads the trace. This would cause a bad memory
+ * access by the kernel and possibly crash the system.
+ *
+ * This function will check if the event has any fields flagged as needing
+ * to be checked at runtime and perform those checks.
+ *
+ * If it is found that a field is unsafe, it will write into the @iter->seq
+ * a message stating what was found to be unsafe.
+ *
+ * @return: true if the event is unsafe and should be ignored,
+ *          false otherwise.
  */
-void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
-                         va_list ap)
+bool ignore_event(struct trace_iterator *iter)
 {
-	const char *p = fmt;
-	const char *str;
-	int i, j;
+	struct ftrace_event_field *field;
+	struct trace_event *trace_event;
+	struct trace_event_call *event;
+	struct list_head *head;
+	struct trace_seq *seq;
+	const void *ptr;
 
-	if (WARN_ON_ONCE(!fmt)) {
-		return;
+	trace_event = ftrace_find_event(iter->ent->type);
+
+	seq = &iter->seq;
+
+	if (!trace_event) {
+		trace_seq_printf(seq, "EVENT ID %d NOT FOUND?\n", iter->ent->type);
+		return true;
 	}
 
-	if (static_branch_unlikely(&trace_no_verify)) {
-		goto print;
+	event = container_of(trace_event, struct trace_event_call, event);
+	if (!(event->flags & TRACE_EVENT_FL_TEST_STR))
+		return false;
+
+	head = trace_get_fields(event);
+	if (!head) {
+		trace_seq_printf(seq, "FIELDS FOR EVENT '%s' NOT FOUND?\n",
+				 trace_event_name(event));
+		return true;
 	}
 
-	/* Don't bother checking when doing a ftrace_dump() */
-	if (iter->fmt == static_fmt_buf) {
-		goto print;
-	}
+	/* Offsets are from the iter->ent that points to the raw event */
+	ptr = iter->ent;
 
-	while (*p) {
-		bool star = false;
-		int len = 0;
+	list_for_each_entry(field, head, link) {
+		const char *str;
+		bool good;
 
-		j = 0;
+		if (!field->needs_test)
+			continue;
 
-		/* We only care about %s and variants */
-		for (i = 0; p[i]; i++) {
-			if (i + 1 >= iter->fmt_size) {
-				/*
-				 * If we can't expand the copy buffer,
-				 * just print it.
-				 */
-				if (!trace_iter_expand_format(iter)) {
-					goto print;
-				}
-			}
+		str = *(const char **)(ptr + field->offset);
 
-			if (p[i] == '\\' && p[i + 1]) {
-				i++;
-				continue;
-			}
-			if (p[i] == '%') {
-				/* Need to test cases like %08.*s */
-				for (j = 1; p[i + j]; j++) {
-					if (isdigit(p[i + j]) ||
-					    p[i + j] == '.') {
-						continue;
-					}
-					if (p[i + j] == '*') {
-						star = true;
-						continue;
-					}
-					break;
-				}
-				if (p[i + j] == 's') {
-					break;
-				}
-				star = false;
-			}
-			j = 0;
-		}
-		/* If no %s found then just print normally */
-		if (!p[i]) {
-			break;
-		}
-
-		/* Copy up to the %s, and print that */
-		strncpy(iter->fmt, p, i);
-		iter->fmt[i] = '\0';
-		trace_seq_vprintf(&iter->seq, iter->fmt, ap);
-
-		/*
-		 * If iter->seq is full, the above call no longer guarantees
-		 * that ap is in sync with fmt processing, and further calls
-		 * to va_arg() can return wrong positional arguments.
-		 *
-		 * Ensure that ap is no longer used in this case.
-		 */
-		if (iter->seq.full) {
-			p = "";
-			break;
-		}
-
-		if (star) {
-			len = va_arg(ap, int);
-		}
-
-		/* The ap now points to the string data of the %s */
-		str = va_arg(ap, const char *);
+		good = trace_safe_str(iter, str);
 
 		/*
 		 * If you hit this warning, it is likely that the
@@ -4133,49 +4036,14 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 		 * instead. See samples/trace_events/trace-events-sample.h
 		 * for reference.
 		 */
-		if (WARN_ONCE(!trace_safe_str(iter, str, star, len),
-		              "fmt: '%s' current_buffer: '%s'",
-		              fmt, show_buffer(&iter->seq))) {
-			int ret;
-
-			/* Try to safely read the string */
-			if (star) {
-				if (len + 1 > iter->fmt_size) {
-					len = iter->fmt_size - 1;
-				}
-				if (len < 0) {
-					len = 0;
-				}
-				ret = copy_from_kernel_nofault(iter->fmt, str, len);
-				iter->fmt[len] = 0;
-				star = false;
-			} else {
-				ret = strncpy_from_kernel_nofault(iter->fmt, str,
-				                                  iter->fmt_size);
-			}
-			if (ret < 0) {
-				trace_seq_printf(&iter->seq, "(0x%px)", str);
-			} else
-				trace_seq_printf(&iter->seq, "(0x%px:%s)",
-				                 str, iter->fmt);
-			str = "[UNSAFE-MEMORY]";
-			strcpy(iter->fmt, "%s");
-		} else {
-			strncpy(iter->fmt, p + i, j + 1);
-			iter->fmt[j + 1] = '\0';
+		if (WARN_ONCE(!good, "event '%s' has unsafe pointer field '%s'",
+			      trace_event_name(event), field->name)) {
+			trace_seq_printf(seq, "EVENT %s: HAS UNSAFE POINTER FIELD '%s'\n",
+					 trace_event_name(event), field->name);
+			return true;
 		}
-		if (star) {
-			trace_seq_printf(&iter->seq, iter->fmt, len, str);
-		} else {
-			trace_seq_printf(&iter->seq, iter->fmt, str);
-		}
-
-		p += i + j + 1;
 	}
-print:
-	if (*p) {
-		trace_seq_vprintf(&iter->seq, p, ap);
-	}
+	return false;
 }
 
 const char *trace_event_format(struct trace_iterator *iter, const char *fmt)
@@ -4183,21 +4051,18 @@ const char *trace_event_format(struct trace_iterator *iter, const char *fmt)
 	const char *p, *new_fmt;
 	char *q;
 
-	if (WARN_ON_ONCE(!fmt)) {
+	if (WARN_ON_ONCE(!fmt))
 		return fmt;
-	}
 
-	if (!iter->tr || iter->tr->trace_flags & TRACE_ITER_HASH_PTR) {
+	if (!iter->tr || iter->tr->trace_flags & TRACE_ITER_HASH_PTR)
 		return fmt;
-	}
 
 	p = fmt;
 	new_fmt = q = iter->fmt;
 	while (*p) {
 		if (unlikely(q - new_fmt + 3 > iter->fmt_size)) {
-			if (!trace_iter_expand_format(iter)) {
+			if (!trace_iter_expand_format(iter))
 				return fmt;
-			}
 
 			q += iter->fmt - new_fmt;
 			new_fmt = iter->fmt;
@@ -4220,12 +4085,12 @@ const char *trace_event_format(struct trace_iterator *iter, const char *fmt)
 	return new_fmt;
 }
 
-#define STATIC_TEMP_BUF_SIZE    128
+#define STATIC_TEMP_BUF_SIZE	128
 static char static_temp_buf[STATIC_TEMP_BUF_SIZE] __aligned(4);
 
 /* Find the next real entry, without updating the iterator itself */
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
-        int *ent_cpu, u64 *ent_ts)
+					  int *ent_cpu, u64 *ent_ts)
 {
 	/* __find_next_entry will reset ent_size */
 	int ent_size = iter->ent_size;
@@ -4240,9 +4105,8 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 	 * stamps have a large delta. See trace_print_lat_context()
 	 */
 	if (iter->temp == static_temp_buf &&
-	    STATIC_TEMP_BUF_SIZE < ent_size) {
+	    STATIC_TEMP_BUF_SIZE < ent_size)
 		return NULL;
-	}
 
 	/*
 	 * The __find_next_entry() may call peek_next_entry(), which may
@@ -4254,9 +4118,8 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 		    !WARN_ON_ONCE(iter->temp == static_temp_buf)) {
 			void *temp;
 			temp = kmalloc(iter->ent_size, GFP_KERNEL);
-			if (!temp) {
+			if (!temp)
 				return NULL;
-			}
 			kfree(iter->temp);
 			iter->temp = temp;
 			iter->temp_size = iter->ent_size;
@@ -4275,11 +4138,10 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 void *trace_find_next_entry_inc(struct trace_iterator *iter)
 {
 	iter->ent = __find_next_entry(iter, &iter->cpu,
-	                              &iter->lost_events, &iter->ts);
+				      &iter->lost_events, &iter->ts);
 
-	if (iter->ent) {
+	if (iter->ent)
 		trace_iterator_increment(iter);
-	}
 
 	return iter->ent ? iter : NULL;
 }
@@ -7360,7 +7222,7 @@ waitagain:
 
 	/* Now copy what we have to the user */
 	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
-	if (iter->seq.seq.readpos >= trace_seq_used(&iter->seq)) {
+	if (iter->seq.readpos >= trace_seq_used(&iter->seq)) {
 		trace_seq_init(&iter->seq);
 	}
 
@@ -11111,8 +10973,6 @@ __init static int tracer_alloc_buffers(void)
 	apply_trace_boot_options();
 
 	register_snapshot_cmd();
-
-	test_can_verify();
 
 	return 0;
 
