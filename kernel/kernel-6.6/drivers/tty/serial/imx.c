@@ -113,49 +113,50 @@
 #define UCR4_WKEN   (1<<7)  /* Wake interrupt enable */
 #define UCR4_REF16  (1<<6)  /* Ref freq 16 MHz */
 #define UCR4_IDDMAEN    (1<<6)  /* DMA IDLE Condition Detected */
-#define UCR4_IRSC   (1<<5)  /* IR special case */
-#define UCR4_TCEN   (1<<3)  /* Transmit complete interrupt enable */
-#define UCR4_BKEN   (1<<2)  /* Break condition interrupt enable */
-#define UCR4_OREN   (1<<1)  /* Receiver overrun interrupt enable */
-#define UCR4_DREN   (1<<0)  /* Recv data ready interrupt enable */
-#define UFCR_RXTL_SHF   0   /* Receiver trigger level shift */
-#define UFCR_DCEDTE (1<<6)  /* DCE/DTE mode select */
-#define UFCR_RFDIV  (7<<7)  /* Reference freq divider mask */
-#define UFCR_RFDIV_REG(x)   (((x) < 7 ? 6 - (x) : 6) << 7)
-#define UFCR_TXTL_SHF   10  /* Transmitter trigger level shift */
-#define USR1_PARITYERR  (1<<15) /* Parity error interrupt flag */
-#define USR1_RTSS   (1<<14) /* RTS pin status */
-#define USR1_TRDY   (1<<13) /* Transmitter ready interrupt/dma flag */
-#define USR1_RTSD   (1<<12) /* RTS delta */
-#define USR1_ESCF   (1<<11) /* Escape seq interrupt flag */
-#define USR1_FRAMERR    (1<<10) /* Frame error interrupt flag */
-#define USR1_RRDY   (1<<9)   /* Receiver ready interrupt/dma flag */
-#define USR1_AGTIM  (1<<8)   /* Ageing timer interrupt flag */
-#define USR1_DTRD   (1<<7)   /* DTR Delta */
-#define USR1_RXDS    (1<<6)  /* Receiver idle interrupt flag */
-#define USR1_AIRINT  (1<<5)  /* Async IR wake interrupt flag */
-#define USR1_AWAKE   (1<<4)  /* Aysnc wake interrupt flag */
-#define USR2_ADET    (1<<15) /* Auto baud rate detect complete */
-#define USR2_TXFE    (1<<14) /* Transmit buffer FIFO empty */
-#define USR2_DTRF    (1<<13) /* DTR edge interrupt flag */
-#define USR2_IDLE    (1<<12) /* Idle condition */
-#define USR2_RIDELT  (1<<10) /* Ring Interrupt Delta */
-#define USR2_RIIN    (1<<9)  /* Ring Indicator Input */
-#define USR2_IRINT   (1<<8)  /* Serial infrared interrupt flag */
-#define USR2_WAKE    (1<<7)  /* Wake */
-#define USR2_DCDIN   (1<<5)  /* Data Carrier Detect Input */
-#define USR2_RTSF    (1<<4)  /* RTS edge interrupt flag */
-#define USR2_TXDC    (1<<3)  /* Transmitter complete */
-#define USR2_BRCD    (1<<2)  /* Break condition */
-#define USR2_ORE    (1<<1)   /* Overrun error */
-#define USR2_RDR    (1<<0)   /* Recv data ready */
-#define UTS_FRCPERR (1<<13) /* Force parity error */
-#define UTS_LOOP    (1<<12)  /* Loop tx and rx */
-#define UTS_TXEMPTY  (1<<6)  /* TxFIFO empty */
-#define UTS_RXEMPTY  (1<<5)  /* RxFIFO empty */
-#define UTS_TXFULL   (1<<4)  /* TxFIFO full */
-#define UTS_RXFULL   (1<<3)  /* RxFIFO full */
-#define UTS_SOFTRST  (1<<0)  /* Software reset */
+#define UCR4_IRSC	(1<<5)	/* IR special case */
+#define UCR4_TCEN	(1<<3)	/* Transmit complete interrupt enable */
+#define UCR4_BKEN	(1<<2)	/* Break condition interrupt enable */
+#define UCR4_OREN	(1<<1)	/* Receiver overrun interrupt enable */
+#define UCR4_DREN	(1<<0)	/* Recv data ready interrupt enable */
+#define UFCR_RXTL_SHF	0	/* Receiver trigger level shift */
+#define UFCR_RXTL_MASK	0x3F	/* Receiver trigger 6 bits wide */
+#define UFCR_DCEDTE	(1<<6)	/* DCE/DTE mode select */
+#define UFCR_RFDIV	(7<<7)	/* Reference freq divider mask */
+#define UFCR_RFDIV_REG(x)	(((x) < 7 ? 6 - (x) : 6) << 7)
+#define UFCR_TXTL_SHF	10	/* Transmitter trigger level shift */
+#define USR1_PARITYERR	(1<<15) /* Parity error interrupt flag */
+#define USR1_RTSS	(1<<14) /* RTS pin status */
+#define USR1_TRDY	(1<<13) /* Transmitter ready interrupt/dma flag */
+#define USR1_RTSD	(1<<12) /* RTS delta */
+#define USR1_ESCF	(1<<11) /* Escape seq interrupt flag */
+#define USR1_FRAMERR	(1<<10) /* Frame error interrupt flag */
+#define USR1_RRDY	(1<<9)	 /* Receiver ready interrupt/dma flag */
+#define USR1_AGTIM	(1<<8)	 /* Ageing timer interrupt flag */
+#define USR1_DTRD	(1<<7)	 /* DTR Delta */
+#define USR1_RXDS	 (1<<6)	 /* Receiver idle interrupt flag */
+#define USR1_AIRINT	 (1<<5)	 /* Async IR wake interrupt flag */
+#define USR1_AWAKE	 (1<<4)	 /* Aysnc wake interrupt flag */
+#define USR2_ADET	 (1<<15) /* Auto baud rate detect complete */
+#define USR2_TXFE	 (1<<14) /* Transmit buffer FIFO empty */
+#define USR2_DTRF	 (1<<13) /* DTR edge interrupt flag */
+#define USR2_IDLE	 (1<<12) /* Idle condition */
+#define USR2_RIDELT	 (1<<10) /* Ring Interrupt Delta */
+#define USR2_RIIN	 (1<<9)	 /* Ring Indicator Input */
+#define USR2_IRINT	 (1<<8)	 /* Serial infrared interrupt flag */
+#define USR2_WAKE	 (1<<7)	 /* Wake */
+#define USR2_DCDIN	 (1<<5)	 /* Data Carrier Detect Input */
+#define USR2_RTSF	 (1<<4)	 /* RTS edge interrupt flag */
+#define USR2_TXDC	 (1<<3)	 /* Transmitter complete */
+#define USR2_BRCD	 (1<<2)	 /* Break condition */
+#define USR2_ORE	(1<<1)	 /* Overrun error */
+#define USR2_RDR	(1<<0)	 /* Recv data ready */
+#define UTS_FRCPERR	(1<<13) /* Force parity error */
+#define UTS_LOOP	(1<<12)	 /* Loop tx and rx */
+#define UTS_TXEMPTY	 (1<<6)	 /* TxFIFO empty */
+#define UTS_RXEMPTY	 (1<<5)	 /* RxFIFO empty */
+#define UTS_TXFULL	 (1<<4)	 /* TxFIFO full */
+#define UTS_RXFULL	 (1<<3)	 /* RxFIFO full */
+#define UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
 /* We've been assigned a range on the "Low-density serial ports" major */
 #define SERIAL_IMX_MAJOR    207
@@ -2022,7 +2023,7 @@ static int imx_uart_rs485_config(struct uart_port *port, struct ktermios *termio
                                  struct serial_rs485 *rs485conf)
 {
 	struct imx_port *sport = (struct imx_port *)port;
-	u32 ucr2;
+	u32 ucr2, ufcr;
 
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		/* Enable receiver if low-active RTS signal is requested */
@@ -2044,6 +2045,10 @@ static int imx_uart_rs485_config(struct uart_port *port, struct ktermios *termio
 	/* Make sure Rx is enabled in case Tx is active with Rx disabled */
 	if (!(rs485conf->flags & SER_RS485_ENABLED) ||
 	    rs485conf->flags & SER_RS485_RX_DURING_TX) {
+		/* If the receiver trigger is 0, set it to a default value */
+		ufcr = imx_uart_readl(sport, UFCR);
+		if ((ufcr & UFCR_RXTL_MASK) == 0)
+			imx_uart_setup_ufcr(sport, TXTL_DEFAULT, RXTL_DEFAULT);
 		imx_uart_start_rx(port);
 	}
 
