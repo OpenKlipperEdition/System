@@ -72,7 +72,9 @@ struct zram_table_entry {
 #ifdef CONFIG_PREEMPT_RT
 	spinlock_t lock;
 #endif
-#ifdef CONFIG_ZRAM_MEMORY_TRACKING
+#ifdef CONFIG_ZRAM_TRACK_ENTRY_ACTIME
+	ktime_t ac_time;
+#endif
 	ktime_t ac_time;
 #endif
 };
