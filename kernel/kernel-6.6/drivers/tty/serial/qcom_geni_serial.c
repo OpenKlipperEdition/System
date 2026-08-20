@@ -124,7 +124,7 @@ struct qcom_geni_serial_port {
 	dma_addr_t tx_dma_addr;
 	dma_addr_t rx_dma_addr;
 	bool setup;
-	unsigned int baud;
+	unsigned long poll_timeout_us;
 	unsigned long clk_rate;
 	void *rx_buf;
 	u32 loopback;
@@ -284,15 +284,16 @@ static bool qcom_geni_serial_poll_bit(struct uart_port *uport,
 	if (private_data->drv) {
 		port = to_dev_port(uport);
 		baud = port->baud;
-		if (!baud) {
+		if (!baud)
 			baud = 115200;
-		}
 		fifo_bits = port->tx_fifo_depth * port->tx_fifo_width;
 		/*
 		 * Total polling iterations based on FIFO worth of bytes to be
 		 * sent at current baud. Add a little fluff to the wait.
 		 */
 		timeout_us = ((fifo_bits * USEC_PER_SEC) / baud) + 500;
+		if (port->poll_timeout_us)
+			timeout_us = port->poll_timeout_us;
 	}
 
 	/*
@@ -1284,11 +1285,11 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 	unsigned long clk_rate;
 	u32 ver, sampling_rate;
 	unsigned int avg_bw_core;
+	unsigned long timeout;
 
 	qcom_geni_serial_stop_rx(uport);
 	/* baud rate */
 	baud = uart_get_baud_rate(uport, termios, old, 300, 4000000);
-	port->baud = baud;
 
 	sampling_rate = UART_OVERSAMPLING;
 	/* Sampling rate is halved for IP versions >= 2.5 */
@@ -1371,6 +1372,18 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 
 	if (baud) {
 		uart_update_timeout(uport, termios->c_cflag, baud);
+	}
+
+		/*
+		 * Make sure that qcom_geni_serial_poll_bitfield() waits for
+		 * the FIFO, two-word intermediate transfer register and shift
+		 * register to clear.
+		 *
+		 * Note that uart_fifo_timeout() also adds a 20 ms margin.
+		 */
+		timeout = jiffies_to_usecs(uart_fifo_timeout(uport));
+		timeout += 3 * timeout / port->tx_fifo_depth;
+		WRITE_ONCE(port->poll_timeout_us, timeout);
 	}
 
 	if (!uart_console(uport))
