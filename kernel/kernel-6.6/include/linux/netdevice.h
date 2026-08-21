@@ -3190,6 +3190,7 @@ static inline int dev_parse_header(const struct sk_buff *skb,
 
 	if (!dev->header_ops || !dev->header_ops->parse) {
 		return 0;
+	}
 	return dev->header_ops->parse(skb, dev, haddr);
 }
 
@@ -3216,7 +3217,6 @@ static inline bool dev_validate_header(const struct net_device *dev,
 
 	if (dev->header_ops && dev->header_ops->validate)
 		return dev->header_ops->validate(ll_header, len);
-	}
 
 	return false;
 }
