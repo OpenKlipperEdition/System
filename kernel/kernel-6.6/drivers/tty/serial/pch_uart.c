@@ -701,9 +701,8 @@ static void pch_request_dma(struct uart_port *port)
 	chan = dma_request_channel(mask, filter, param);
 	if (!chan) {
 		dev_err(priv->port.dev, "%s:dma_request_channel FAILS(Tx)\n",
-		        __func__);
-		pci_dev_put(dma_dev);
-		return;
+			__func__);
+		goto err_pci_get;
 	}
 	priv->chan_tx = chan;
 
@@ -716,18 +715,26 @@ static void pch_request_dma(struct uart_port *port)
 	chan = dma_request_channel(mask, filter, param);
 	if (!chan) {
 		dev_err(priv->port.dev, "%s:dma_request_channel FAILS(Rx)\n",
-		        __func__);
-		dma_release_channel(priv->chan_tx);
-		priv->chan_tx = NULL;
-		pci_dev_put(dma_dev);
-		return;
+			__func__);
+		goto err_req_tx;
 	}
 
 	/* Get Consistent memory for DMA */
 	priv->rx_buf_virt = dma_alloc_coherent(port->dev, port->fifosize,
-	                                       &priv->rx_buf_dma, GFP_KERNEL);
+				    &priv->rx_buf_dma, GFP_KERNEL);
+	if (!priv->rx_buf_virt)
+		goto err_req_rx;
 	priv->chan_rx = chan;
 
+	pci_dev_put(dma_dev);
+	return;
+
+err_req_rx:
+	dma_release_channel(chan);
+err_req_tx:
+	dma_release_channel(priv->chan_tx);
+	priv->chan_tx = NULL;
+err_pci_get:
 	pci_dev_put(dma_dev);
 }
 

@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/sysrq.h>
@@ -48,14 +49,6 @@
 
 #include <linux/atomic.h>
 #include <linux/io.h>
-#include <asm/bootinfo.h>
-
-#include <asm/dec/interrupts.h>
-#include <asm/dec/kn01.h>
-#include <asm/dec/kn02.h>
-#include <asm/dec/machtype.h>
-#include <asm/dec/prom.h>
-#include <asm/dec/system.h>
 
 #include "dz.h"
 
@@ -65,7 +58,9 @@ MODULE_LICENSE("GPL");
 
 
 static char dz_name[] __initdata = "DECstation DZ serial driver version ";
-static char dz_version[] __initdata = "1.04";
+static char dz_version[] __initdata = "1.05";
+
+#define DZ_IO_SIZE 0x20			/* IOMEM space size.  */
 
 struct dz_port {
 	struct dz_mux       *mux;
@@ -81,6 +76,7 @@ struct dz_mux {
 };
 
 static struct dz_mux dz_mux;
+static struct uart_driver dz_reg;
 
 static inline struct dz_port *to_dport(struct uart_port *uport)
 {
@@ -558,14 +554,47 @@ static int dz_encode_baud_rate(unsigned int baud)
 static void dz_reset(struct dz_port *dport)
 {
 	struct dz_mux *mux = dport->mux;
+	unsigned short tcr;
+	int loops = 10000;
 
 	if (mux->initialised) {
 		return;
 	}
 
+	tcr = dz_in(dport, DZ_TCR);
+
+	/* Do not disturb any ongoing transmissions.  */
+	if (dz_in(dport, DZ_CSR) & DZ_MSE) {
+		unsigned short csr, mask;
+
+		mask = tcr;
+		while ((mask & DZ_LNENB) && loops--) {
+			csr = dz_in(dport, DZ_CSR);
+			if (!(csr & DZ_TRDY))
+				continue;
+			mask &= ~(1 << ((csr & DZ_TLINE) >> 8));
+			dz_out(dport, DZ_TCR, mask);
+			iob();
+			udelay(2);		/* 1.4us TRDY recovery.  */
+		}
+		fsleep(1200);			/* Transmitter drain.  */
+	}
+
 	dz_out(dport, DZ_CSR, DZ_CLR);
 	while (dz_in(dport, DZ_CSR) & DZ_CLR);
 	iob();
+
+	/*
+	 * Set parameters across all lines such as not to interfere
+	 * with the initial PROM-based console.  Otherwise any output
+	 * produced before the console handover would cause the system
+	 * firmware to produce rubbish.
+	 */
+	for (int line = 0; line < DZ_NB_PORT; line++)
+		dz_out(dport, DZ_LPR, DZ_B9600 | DZ_CS8 | line);
+
+	/* Re-enable transmission for the initial PROM-based console.  */
+	dz_out(dport, DZ_TCR, tcr);
 
 	/* Enable scanning.  */
 	dz_out(dport, DZ_CSR, DZ_MSE);
@@ -788,10 +817,9 @@ static const struct uart_ops dz_ops = {
 	.verify_port    = dz_verify_port,
 };
 
-static void __init dz_init_ports(void)
+static int __init dz_probe(struct platform_device *pdev)
 {
-	static int first = 1;
-	unsigned long base;
+	struct resource *mem_resource, *irq_resource;
 	int line;
 
 	if (!first) {
@@ -819,6 +847,24 @@ static void __init dz_init_ports(void)
 		uport->line = line;
 		uport->mapbase  = base;
 		uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_DZ_CONSOLE);
+
+		if (uart_add_one_port(&dz_reg, uport))
+			uport->dev = NULL;
+	}
+
+	return 0;
+}
+
+static void __exit dz_remove(struct platform_device *pdev)
+{
+	int line;
+
+	for (line = DZ_NB_PORT - 1; line >= 0; line--) {
+		struct dz_port *dport = &dz_mux.dport[line];
+		struct uart_port *uport = &dport->port;
+
+		if (uport->dev)
+			uart_remove_one_port(&dz_reg, uport);
 	}
 }
 
@@ -923,7 +969,6 @@ static int __init dz_console_setup(struct console *co, char *options)
 	return uart_set_options(&dport->port, co, baud, parity, bits, flow);
 }
 
-static struct uart_driver dz_reg;
 static struct console dz_console = {
 	.name   = "ttyS",
 	.write  = dz_console_print,
@@ -962,6 +1007,11 @@ static struct uart_driver dz_reg = {
 	.cons           = SERIAL_DZ_CONSOLE,
 };
 
+static struct platform_driver dz_driver = {
+	.remove_new = __exit_p(dz_remove),
+	.driver = { .name = "dz" },
+};
+
 static int __init dz_init(void)
 {
 	int ret, i;
@@ -972,8 +1022,6 @@ static int __init dz_init(void)
 
 	printk("%s%s\n", dz_name, dz_version);
 
-	dz_init_ports();
-
 	ret = uart_register_driver(&dz_reg);
 	if (ret) {
 		return ret;
@@ -983,7 +1031,11 @@ static int __init dz_init(void)
 		uart_add_one_port(&dz_reg, &dz_mux.dport[i].port);
 	}
 
-	return 0;
+static void __exit dz_exit(void)
+{
+	platform_driver_unregister(&dz_driver);
+	uart_unregister_driver(&dz_reg);
 }
 
 module_init(dz_init);
+module_exit(dz_exit);
