@@ -8933,7 +8933,6 @@ idle:
 			goto again;
 		}
 	}
-	}
 
 	return NULL;
 }
@@ -9529,7 +9528,6 @@ static int detach_tasks(struct lb_env *env)
 		/* We've more or less seen every task there is, call it quits */
 		if (env->loop > env->loop_max)
 			break;
-		}
 
 		/* take a breather every nr_migrate tasks */
 		if (env->loop > env->loop_break) {
@@ -10015,7 +10013,6 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 
 	if (!capacity)
 		capacity = 1;
-	}
 
 	cpu_rq(cpu)->cpu_capacity = capacity;
 	trace_sched_cpu_capacity_tp(cpu_rq(cpu));
@@ -12797,7 +12794,6 @@ static void _nohz_idle_balance(struct rq *this_rq, unsigned int flags)
 		if (!idle_cpu(this_cpu) && need_resched()) {
 			if (flags & NOHZ_STATS_KICK)
 				has_blocked_load = true;
-			}
 			if (flags & NOHZ_NEXT_KICK) {
 				WRITE_ONCE(nohz.needs_update, 1);
 			}
