@@ -970,6 +970,7 @@ static bool skb_pp_recycle(struct sk_buff *skb, void *data, bool napi_safe)
 
 static void skb_kfree_head(void *head, unsigned int end_offset)
 {
+	/* Preserve the allocator/free pairing for cached small skb heads. */
 	if (end_offset == SKB_SMALL_HEAD_HEADROOM) {
 		kmem_cache_free(skb_small_head_cache, head);
 	} else {
