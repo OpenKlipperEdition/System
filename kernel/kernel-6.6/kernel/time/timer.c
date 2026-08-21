@@ -1445,9 +1445,8 @@ static int __try_to_del_timer_sync(struct timer_list *timer, bool shutdown)
 
 	if (base->running_timer != timer) {
 		ret = detach_if_pending(timer, base, true);
-	}
-	if (shutdown) {
-		timer->function = NULL;
+		if (shutdown)
+			timer->function = NULL;
 	}
 
 	raw_spin_unlock_irqrestore(&base->lock, flags);
