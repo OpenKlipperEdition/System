@@ -472,10 +472,10 @@ static void print_cpu_stat_info(int cpu)
 	rsr.cputime_system  = kcpustat_field(kcsp, CPUTIME_SYSTEM, cpu);
 
 	pr_err("\t         hardirqs   softirqs   csw/system\n");
-	pr_err("\t number: %8ld %10d %12lld\n",
-	       kstat_cpu_irqs_sum(cpu) - rsrp->nr_hardirqs,
-	       kstat_cpu_softirqs_sum(cpu) - rsrp->nr_softirqs,
-	       nr_context_switches_cpu(cpu) - rsrp->nr_csw);
+	pr_err("\t number: %8lld %10d %12lld\n",
+		kstat_cpu_irqs_sum(cpu) + arch_irq_stat_cpu(cpu) - rsrp->nr_hardirqs,
+		kstat_cpu_softirqs_sum(cpu) - rsrp->nr_softirqs,
+		nr_context_switches_cpu(cpu) - rsrp->nr_csw);
 	pr_err("\tcputime: %8lld %10lld %12lld   ==> %d(ms)\n",
 	       div_u64(rsr.cputime_irq - rsrp->cputime_irq, NSEC_PER_MSEC),
 	       div_u64(rsr.cputime_softirq - rsrp->cputime_softirq, NSEC_PER_MSEC),
