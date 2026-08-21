@@ -617,6 +617,8 @@
 #define DIEPDMA(_a)			HSOTG_REG(0x914 + ((_a) * 0x20))
 #define DOEPDMA(_a)			HSOTG_REG(0xB14 + ((_a) * 0x20))
 
+#define PCGCTL			HSOTG_REG(0x0e00)
+#define PCGCTL_ENBL_SLEEP_GATING	BIT(5)
 #define DTXFSTS(_a)			HSOTG_REG(0x918 + ((_a) * 0x20))
 
 #define EPFIFO(_a)			HSOTG_REG(0x1000 + ((_a) * 0x1000))
