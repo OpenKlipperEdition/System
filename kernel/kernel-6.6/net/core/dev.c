@@ -2285,12 +2285,8 @@ EXPORT_SYMBOL(net_disable_timestamp);
 static inline void net_timestamp_set(struct sk_buff *skb)
 {
 	skb->tstamp = 0;
-	skb->mono_delivery_time = 0;
 	skb->tstamp_type = SKB_CLOCK_REALTIME;
 	if (static_branch_unlikely(&netstamp_needed_key)) {
-		skb->tstamp = ktime_get_real();
-	}
-
 		skb->tstamp = ktime_get_real();
 	}
 }
@@ -3736,7 +3732,6 @@ static netdev_features_t gso_features_check(const struct sk_buff *skb,
 
 	if (unlikely(skb->len >= netif_get_gso_max_size(dev, skb)))
 		return features & ~NETIF_F_GSO_MASK;
-	}
 
 	if (!skb_shinfo(skb)->gso_type) {
 		skb_warn_bad_offload(skb);
