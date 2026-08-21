@@ -38,9 +38,14 @@ enum vc_intensity;
 /**
  * struct consw - callbacks for consoles
  *
+ * @con_init:   initialize the console on @vc. @init is true for the very first
+ *		call on this @vc.
+ * @con_clear:  erase @count characters at [@x, @y] on @vc. @count >= 1.
  * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
- *      Return true if no generic handling should be done.
- *      Invoked by csi_M and printing to the console.
+ *		Return true if no generic handling should be done.
+ *		Invoked by csi_M and printing to the console.
+ * @con_switch: notifier about the console switch; it is supposed to return
+ *		true if a redraw is needed.
  * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *           Invoked by user. (optional)
@@ -48,36 +53,36 @@ enum vc_intensity;
 struct consw {
 	struct module *owner;
 	const char *(*con_startup)(void);
-	void (*con_init)(struct vc_data *vc, int init);
-	void (*con_deinit)(struct vc_data *vc);
-	void (*con_clear)(struct vc_data *vc, int sy, int sx, int height,
-	                  int width);
-	void (*con_putc)(struct vc_data *vc, int c, int ypos, int xpos);
-	void (*con_putcs)(struct vc_data *vc, const unsigned short *s,
-	                  int count, int ypos, int xpos);
-	void (*con_cursor)(struct vc_data *vc, int mode);
-	bool (*con_scroll)(struct vc_data *vc, unsigned int top,
-	                   unsigned int bottom, enum con_scroll dir,
-	                   unsigned int lines);
-	int (*con_switch)(struct vc_data *vc);
-	int (*con_blank)(struct vc_data *vc, int blank, int mode_switch);
-	int (*con_font_set)(struct vc_data *vc, struct console_font *font,
-	                    unsigned int vpitch, unsigned int flags);
-	int (*con_font_get)(struct vc_data *vc, struct console_font *font,
-	                    unsigned int vpitch);
-	int (*con_font_default)(struct vc_data *vc,
-	                        struct console_font *font, char *name);
-	int (*con_resize)(struct vc_data *vc, unsigned int width,
-	                  unsigned int height, unsigned int user);
-	void (*con_set_palette)(struct vc_data *vc,
-	                        const unsigned char *table);
-	void (*con_scrolldelta)(struct vc_data *vc, int lines);
-	int (*con_set_origin)(struct vc_data *vc);
-	void (*con_save_screen)(struct vc_data *vc);
-	u8(*con_build_attr)(struct vc_data *vc, u8 color,
-	                    enum vc_intensity intensity,
-	                    bool blink, bool underline, bool reverse, bool italic);
-	void (*con_invert_region)(struct vc_data *vc, u16 *p, int count);
+	void	(*con_init)(struct vc_data *vc, bool init);
+	void	(*con_deinit)(struct vc_data *vc);
+	void	(*con_clear)(struct vc_data *vc, unsigned int y,
+			     unsigned int x, unsigned int count);
+	void	(*con_putc)(struct vc_data *vc, int c, int ypos, int xpos);
+	void	(*con_putcs)(struct vc_data *vc, const unsigned short *s,
+			int count, int ypos, int xpos);
+	void	(*con_cursor)(struct vc_data *vc, int mode);
+	bool	(*con_scroll)(struct vc_data *vc, unsigned int top,
+			unsigned int bottom, enum con_scroll dir,
+			unsigned int lines);
+	bool	(*con_switch)(struct vc_data *vc);
+	int	(*con_blank)(struct vc_data *vc, int blank, int mode_switch);
+	int	(*con_font_set)(struct vc_data *vc, struct console_font *font,
+			unsigned int vpitch, unsigned int flags);
+	int	(*con_font_get)(struct vc_data *vc, struct console_font *font,
+			unsigned int vpitch);
+	int	(*con_font_default)(struct vc_data *vc,
+			struct console_font *font, char *name);
+	int     (*con_resize)(struct vc_data *vc, unsigned int width,
+			unsigned int height, unsigned int user);
+	void	(*con_set_palette)(struct vc_data *vc,
+			const unsigned char *table);
+	void	(*con_scrolldelta)(struct vc_data *vc, int lines);
+	int	(*con_set_origin)(struct vc_data *vc);
+	void	(*con_save_screen)(struct vc_data *vc);
+	u8	(*con_build_attr)(struct vc_data *vc, u8 color,
+			enum vc_intensity intensity,
+			bool blink, bool underline, bool reverse, bool italic);
+	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
 	u16    *(*con_screen_pos)(const struct vc_data *vc, int offset);
 	unsigned long (*con_getxy)(struct vc_data *vc, unsigned long position,
 	                           int *px, int *py);
