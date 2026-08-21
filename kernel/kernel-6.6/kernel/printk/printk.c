@@ -2450,15 +2450,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 		return 0;
 	}
 
-	/*
-	 * The messages on the panic CPU are the most important. If
-	 * non-panic CPUs are generating any messages, they will be
-	 * silently dropped.
-	 */
-	if (unlikely(suppress_panic_printk) && other_cpu_in_panic()) {
-		return 0;
-	}
-
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;
 		/* If called from the scheduler, we can not call up(). */
