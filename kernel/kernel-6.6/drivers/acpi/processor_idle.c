@@ -1507,6 +1507,9 @@ int acpi_processor_power_init(struct acpi_processor *pr)
 			if (acpi_processor_registered == 0) {
 				cpuidle_unregister_driver(&acpi_idle_driver);
 			}
+
+			per_cpu(acpi_cpuidle_device, pr->id) = NULL;
+			kfree(dev);
 			return retval;
 		}
 		acpi_processor_registered++;
