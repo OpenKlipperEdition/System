@@ -4276,7 +4276,7 @@ bool ttwu_state_match(struct task_struct *p, unsigned int state, int *success)
 	 */
 	if (match < 0) {
 		p->saved_state = TASK_RUNNING;
-
+	}
 	return match > 0;
 }
 
