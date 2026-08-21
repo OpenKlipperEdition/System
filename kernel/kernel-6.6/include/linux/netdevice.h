@@ -3045,8 +3045,9 @@ extern rwlock_t             dev_base_lock;      /* Device list lock */
 	if (netdev_master_upper_dev_get_rcu(slave) == (bond))
 #define net_device_entry(lh)    list_entry(lh, struct net_device, dev_list)
 
-#define for_each_netdev_dump(net, d, ifindex)               \
-	xa_for_each_start(&(net)->dev_by_index, (ifindex), (d), (ifindex))
+#define for_each_netdev_dump(net, d, ifindex)				\
+	for (; (d = xa_find(&(net)->dev_by_index, &ifindex,		\
+			    ULONG_MAX, XA_PRESENT)); ifindex++)
 
 static inline struct net_device *next_net_device(struct net_device *dev)
 {
