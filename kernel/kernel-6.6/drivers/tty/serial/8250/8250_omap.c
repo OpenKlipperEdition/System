@@ -954,7 +954,6 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 	}
 
 	cookie = dma->rx_cookie;
-	dma->rx_running = 0;
 
 	/* Re-enable RX FIFO interrupt now that transfer is complete */
 	if (priv->habit & UART_HAS_RHR_IT_DIS) {
@@ -991,6 +990,7 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 	}
 	ret = tty_insert_flip_string(tty_port, dma->rx_buf, count);
 
+	dma->rx_running = 0;
 	p->port.icount.rx += ret;
 	p->port.icount.buf_overrun += count - ret;
 out:
