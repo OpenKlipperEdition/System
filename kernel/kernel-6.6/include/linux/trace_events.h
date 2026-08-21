@@ -713,9 +713,6 @@ static inline void hist_poll_wakeup(void)
 		return 0;						\
 	}							\
 	early_initcall(trace_init_flags_##name);
-
-	early_initcall(trace_init_flags_##name);
-
 #define __TRACE_EVENT_PERF_PERM(name, expr...)              \
 	static int perf_perm_##name(struct trace_event_call *tp_event, \
 	                            struct perf_event *p_event)     \
