@@ -398,7 +398,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 				uport->cons->ospeed = tty->termios.c_ospeed;
 			}
 
-			if (!tty || C_HUPCL) {
+			if (!tty || C_HUPCL(tty)) {
 				uart_port_dtr_rts(uport, false);
 			}
 		}

@@ -75,8 +75,6 @@ struct zram_table_entry {
 #ifdef CONFIG_ZRAM_TRACK_ENTRY_ACTIME
 	ktime_t ac_time;
 #endif
-	ktime_t ac_time;
-#endif
 };
 
 struct zram_stats {

@@ -1997,7 +1997,7 @@ static inline void __hrtimer_peek_ahead_timers(void)
 {
 	struct tick_device *td;
 
-	if (!hrtimer_hres_active()) {
+	if (!hrtimer_hres_active(this_cpu_ptr(&hrtimer_bases))) {
 		return;
 	}
 

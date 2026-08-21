@@ -355,7 +355,6 @@ static void mark_idle(struct zram *zram, ktime_t cutoff)
 			zram_slot_unlock(zram, index);
 			continue;
 		}
-		}
 
 #ifdef CONFIG_ZRAM_TRACK_ENTRY_ACTIME
 		is_idle = !cutoff ||
