@@ -4006,7 +4006,6 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 		avruntime = avg_vruntime(cfs_rq);
 		if (!curr)
 			__dequeue_entity(cfs_rq, se);
-		}
 		update_load_sub(&cfs_rq->load, se->load.weight);
 	}
 	dequeue_load_avg(cfs_rq, se);

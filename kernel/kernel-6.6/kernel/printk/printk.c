@@ -3427,7 +3427,6 @@ void console_unblank(void)
 
 		if ((flags & CON_ENABLED) && c->unblank)
 			c->unblank();
-		}
 	}
 	console_srcu_read_unlock(cookie);
 
