@@ -1,7 +1,0 @@
-config BR2_PACKAGE_CANUTILS
-	bool "canutils"
-	depends on  BR2_PACKAGE_LIBSOCKETCAN
-	help
-	  canutils is a set of open source CAN test tools
-	  This package provides various tools for this stack.
-
